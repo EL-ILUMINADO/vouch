@@ -29,5 +29,15 @@
     "prettier": "^3.8.1",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "prettier --write",
+      "eslint --fix",
+      "bash -c 'pnpm typecheck'"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
   }
 }
