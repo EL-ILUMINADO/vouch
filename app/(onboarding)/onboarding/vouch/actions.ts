@@ -66,9 +66,8 @@ export async function registerUser(
 
   try {
     // 1. Check for the DEV Master Key FIRST
-    const isMasterKey =
-      process.env.NODE_ENV === "development" &&
-      data.vouchCode === process.env.DEV_MASTER_VOUCH_CODE;
+    const masterCode = process.env.MASTER_VOUCH_CODE;
+    const isMasterKey = !!masterCode && data.vouchCode === masterCode;
 
     let issuerId: string | null = null;
     let validCodeId: string | null = null;
