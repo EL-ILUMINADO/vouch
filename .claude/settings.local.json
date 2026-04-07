@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node -e \"const c=require\\('c:/personal-dev/vouch/node_modules/nsfwjs/dist/cjs/index.js'\\); console.log\\(Object.keys\\(c\\)\\)\")",
+      "Bash(node -e ':*)"
+    ]
+  }
+}
