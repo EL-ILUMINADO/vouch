@@ -1,4 +1,3 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
 import { Inter, Geist } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -25,13 +24,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn("font-sans", geist.variable)}
     >
-      <body className={inter.className}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem={false}
-          disableTransitionOnChange
-        >
+      <body
+        className={cn(
+          inter.className,
+          "overflow-x-hidden scrollbar-hide bg-background text-foreground",
+        )}
+      >
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
         </ThemeProvider>
       </body>
