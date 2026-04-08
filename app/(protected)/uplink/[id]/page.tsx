@@ -51,7 +51,7 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
   return (
     <main className="h-screen flex flex-col bg-background">
       <header className="px-6 py-4 border-b border-border flex items-center gap-4 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold">
+        <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold">
           {otherUser.name[0]}
         </div>
         <div>

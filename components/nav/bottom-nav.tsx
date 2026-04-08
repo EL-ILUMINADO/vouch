@@ -30,21 +30,21 @@ export function BottomNav() {
                 "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all",
                 // FIX: Updated text colors for dark mode states
                 isActive
-                  ? "text-indigo-600 dark:text-indigo-400 scale-110"
+                  ? "text-rose-500 dark:text-rose-400 scale-110"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
               <Icon
                 className={cn(
                   "w-5 h-5",
-                  isActive && "fill-indigo-600/10 dark:fill-indigo-400/10",
+                  isActive && "fill-rose-500/10 dark:fill-rose-400/10",
                 )}
               />
               <span className="text-[10px] font-bold uppercase tracking-widest">
                 {item.name}
               </span>
               {isActive && (
-                <div className="absolute -top-px w-8 h-1 bg-indigo-600 dark:bg-indigo-400 rounded-full" />
+                <div className="absolute -top-px w-8 h-1 bg-rose-500 dark:bg-rose-400 rounded-full" />
               )}
             </Link>
           );

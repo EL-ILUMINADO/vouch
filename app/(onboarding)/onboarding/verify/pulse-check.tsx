@@ -2,9 +2,7 @@
 
 import * as React from "react";
 import { MapPin, Loader2, Copy, Check } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { verifyLocation } from "./actions";
-import { cn } from "@/lib/utils";
 
 export function PulseCheck() {
   const [isScanning, setIsScanning] = React.useState(false);
@@ -39,14 +37,11 @@ export function PulseCheck() {
         }
       },
       (err) => {
-        setError(`Telemetry Error: ${err.message}`);
+        setError(`Location error: ${err.message}`);
         setIsScanning(false);
       },
       {
         enableHighAccuracy: true,
-        // Never use a cached position — always acquire a fresh GPS fix.
-        // This prevents stale readings (e.g. from a VPN or prior session)
-        // from producing wildly incorrect distances.
         maximumAge: 0,
         timeout: 15_000,
       },
@@ -55,39 +50,35 @@ export function PulseCheck() {
 
   return (
     <div
-      className="group relative flex flex-col justify-between p-10 border-2 border-foreground/10 bg-background text-foreground hover:bg-foreground hover:text-background hover:border-foreground transition-all duration-500 ease-expo min-h-[360px] cursor-pointer"
+      className="group relative flex flex-col justify-between p-8 rounded-3xl border-2 border-rose-200 dark:border-rose-500/30 bg-rose-50 dark:bg-rose-500/5 text-foreground hover:border-rose-400 dark:hover:border-rose-400/60 hover:shadow-lg transition-all duration-300 min-h-[320px] cursor-pointer"
       onClick={handlePulse}
     >
-      <div className="space-y-8 relative z-10">
-        <MapPin
-          className={cn(
-            "w-12 h-12 stroke-[1.2]",
-            isScanning && "animate-pulse",
-          )}
-        />
-        <div className="space-y-3">
-          <h3 className="text-4xl font-black tracking-tighter uppercase leading-none italic">
-            Geo-Fence
-          </h3>
-          <p className="text-sm font-medium transition-colors duration-500 text-muted-foreground group-hover:text-background/70">
+      <div className="space-y-5">
+        <div className="w-12 h-12 rounded-2xl bg-white dark:bg-rose-500/15 flex items-center justify-center shadow-sm">
+          <MapPin
+            className={`w-6 h-6 text-rose-500 ${isScanning ? "animate-pulse" : ""}`}
+          />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-xl font-black tracking-tight">Use my location</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
             {isScanning
-              ? "Triangulating..."
-              : "Instant clearance via GPS. Physical presence required."}
+              ? "Getting your location…"
+              : "Instant verification — just tap and confirm you're on campus."}
           </p>
         </div>
       </div>
 
-      <div className="space-y-4 relative z-10">
+      <div className="space-y-3 mt-6">
         {error && (
-          <div className="flex items-start justify-between gap-2 p-2 bg-destructive/10 border border-destructive/20">
-            <p className="text-[10px] font-black uppercase tracking-widest text-destructive group-hover:text-destructive-foreground">
-              {"// [Auth_Fail]: "}
+          <div className="flex items-start justify-between gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-2xl">
+            <p className="text-xs font-medium text-destructive leading-relaxed flex-1">
               {error}
             </p>
             <button
               onClick={copyError}
-              className="p-1 hover:bg-foreground/10 rounded transition-colors"
-              title="Copy error message"
+              className="p-1 hover:bg-foreground/10 rounded-lg transition-colors shrink-0"
+              title="Copy error"
             >
               {copied ? (
                 <Check className="w-3 h-3" />
@@ -98,16 +89,20 @@ export function PulseCheck() {
           </div>
         )}
 
-        <Button
-          variant="outline"
-          className="w-full h-14 rounded-none border-2 border-foreground/20 bg-transparent font-black uppercase tracking-widest group-hover:border-background group-hover:bg-background group-hover:text-foreground"
+        <button
+          onClick={handlePulse}
+          disabled={isScanning}
+          className="w-full h-12 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold flex items-center justify-center gap-2 disabled:opacity-60 transition-all active:scale-[0.98] shadow-md shadow-rose-200 dark:shadow-none"
         >
           {isScanning ? (
             <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
-            "Initiate Pulse"
+            <>
+              <MapPin className="w-4 h-4" />
+              Verify Location
+            </>
           )}
-        </Button>
+        </button>
       </div>
     </div>
   );

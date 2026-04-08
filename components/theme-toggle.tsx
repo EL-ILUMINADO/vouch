@@ -20,7 +20,7 @@ export function ThemeToggle() {
         className={cn(
           "p-2 rounded-full",
           theme === "light"
-            ? "bg-card text-indigo-600 dark:text-indigo-400 shadow-sm"
+            ? "bg-card text-rose-500 dark:text-rose-400 shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -33,7 +33,7 @@ export function ThemeToggle() {
         className={cn(
           "p-2 rounded-full",
           theme === "system"
-            ? "bg-card text-indigo-600 dark:text-indigo-400 shadow-sm"
+            ? "bg-card text-rose-500 dark:text-rose-400 shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >
@@ -46,7 +46,7 @@ export function ThemeToggle() {
         className={cn(
           "p-2 rounded-full",
           theme === "dark"
-            ? "bg-card text-indigo-600 dark:text-indigo-400 shadow-sm"
+            ? "bg-card text-rose-500 dark:text-rose-400 shadow-sm"
             : "text-muted-foreground hover:text-foreground",
         )}
       >

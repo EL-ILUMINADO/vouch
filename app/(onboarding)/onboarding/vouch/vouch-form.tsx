@@ -139,17 +139,16 @@ export function VouchForm() {
             className="text-sm font-bold uppercase tracking-tighter text-destructive mb-6"
             role="alert"
           >
-            {"// [System Error]: "}
             {state.error}
           </p>
         )}
         <Button
           type="submit"
           size="lg"
-          className="w-full h-14 bg-foreground text-background font-black uppercase tracking-widest hover:invert transition-all duration-300"
+          className="w-full h-14 font-bold rounded-2xl bg-linear-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white border-0 shadow-lg shadow-rose-200/60 dark:shadow-none transition-all"
           disabled={isPending}
         >
-          {isPending ? "Syncing..." : "Claim Identity"}
+          {isPending ? "Creating account..." : "Create Account"}
         </Button>
       </div>
     </form>

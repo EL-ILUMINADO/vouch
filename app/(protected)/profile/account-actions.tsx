@@ -211,7 +211,7 @@ export function CopyButtonClient({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="text-[10px] font-black uppercase tracking-widest bg-muted px-3 py-1.5 rounded-full text-muted-foreground hover:bg-indigo-600 hover:text-white transition-all flex items-center gap-1.5"
+      className="text-[10px] font-black uppercase tracking-widest bg-muted px-3 py-1.5 rounded-full text-muted-foreground hover:bg-rose-500 hover:text-white transition-all flex items-center gap-1.5"
     >
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
       {copied ? "Copied" : "Copy"}

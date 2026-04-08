@@ -53,7 +53,7 @@ export default async function RadarPage() {
         </p>
         <Link
           href="/discover"
-          className="flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full font-bold text-sm shadow-md active:scale-95 transition-all"
+          className="flex items-center gap-2 px-8 py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-full font-bold text-sm shadow-md active:scale-95 transition-all"
         >
           <Zap className="w-4 h-4 fill-white/20" />
           Go to Discover

@@ -71,7 +71,7 @@ export async function verifyLocation(
     return { error: "Telemetry failure. Retry." };
   }
 
-  redirect("/radar");
+  redirect("/onboarding/photos");
 }
 
 const documentSchema = z.object({

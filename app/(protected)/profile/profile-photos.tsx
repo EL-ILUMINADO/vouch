@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import * as React from "react";
 import {
@@ -183,7 +184,7 @@ export function ProfilePhotos({
               key={url}
               className={`relative aspect-3/4 rounded-2xl overflow-hidden bg-muted border transition-colors ${
                 isProfile
-                  ? "border-indigo-500 ring-2 ring-indigo-500/30"
+                  ? "border-rose-500 ring-2 ring-rose-500/30"
                   : "border-border"
               }`}
             >
@@ -195,7 +196,7 @@ export function ProfilePhotos({
 
               {/* Crown badge on current profile photo */}
               {isProfile && (
-                <div className="absolute top-2 left-2 bg-indigo-600 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
+                <div className="absolute top-2 left-2 bg-rose-500 text-white px-2 py-0.5 rounded-full flex items-center gap-1">
                   <Crown className="w-3 h-3" />
                   <span className="text-[9px] font-black uppercase tracking-widest">
                     Profile
@@ -240,7 +241,7 @@ export function ProfilePhotos({
                   {!isProfile && (
                     <button
                       onClick={() => handleSetProfilePhoto(url)}
-                      className="absolute bottom-2 left-2 right-10 bg-black/60 hover:bg-indigo-600 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest py-1.5 rounded-full transition-colors flex items-center justify-center gap-1"
+                      className="absolute bottom-2 left-2 right-10 bg-black/60 hover:bg-rose-500 backdrop-blur-md text-white text-[9px] font-black uppercase tracking-widest py-1.5 rounded-full transition-colors flex items-center justify-center gap-1"
                     >
                       <Crown className="w-3 h-3" /> Set as Profile
                     </button>
@@ -271,14 +272,14 @@ export function ProfilePhotos({
 
         {/* In-progress tile while scanning / uploading */}
         {addPhase !== "idle" && addPreview && (
-          <div className="relative aspect-3/4 rounded-2xl overflow-hidden border border-indigo-500/50 bg-muted">
+          <div className="relative aspect-3/4 rounded-2xl overflow-hidden border border-rose-400/50 bg-muted">
             <img
               src={addPreview}
               alt="Processing"
               className="w-full h-full object-cover opacity-40"
             />
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
-              <Loader2 className="w-6 h-6 text-indigo-400 animate-spin" />
+              <Loader2 className="w-6 h-6 text-rose-400 animate-spin" />
               <span className="text-[9px] font-black uppercase tracking-widest text-white bg-black/50 px-2 py-0.5 rounded-full">
                 {addPhase === "scanning" ? "Scanning…" : "Uploading…"}
               </span>

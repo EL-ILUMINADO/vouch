@@ -8,6 +8,7 @@ import {
   integer,
   pgEnum,
   doublePrecision,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const verificationStatusEnum = pgEnum("verification_status", [
@@ -16,6 +17,7 @@ export const verificationStatusEnum = pgEnum("verification_status", [
   "verified",
   "banned",
 ]);
+
 export const verificationMethodEnum = pgEnum("verification_method", [
   "none",
   "vouch",
@@ -29,14 +31,37 @@ export const users = pgTable("users", {
   email: text("email").unique().notNull(),
   passwordHash: text("password_hash"),
   name: text("name").notNull(),
-  bio: text("bio"),
   profileImage: text("profile_image"),
   gender: text("gender"),
   lookingFor: text("looking_for"),
   hideLevel: boolean("hide_level").default(false).notNull(),
+  bio: text("bio"),
+  interests: text("interests")
+    .array()
+    .notNull()
+    .default(sql`'{}'::text[]`),
+
+  // Specific question answers (helps with Radar filtering later!)
+  prompt_question: text("prompt_question"),
+  prompt_answer: text("prompt_answer"),
   images: text("images")
     .array()
     .default(sql`'{}'::text[]`),
+
+  // Categorized Data for SQL Filtering (Dropdowns)
+  intent: text("intent"), // "Long-term", "Short-term", etc.
+  social_energy: text("social_energy"), // "Introvert", "Extrovert", "Ambivert"
+  conflict_style: text("conflict_style"),
+  energy_vibe: text("energy_vibe"), // "Spontaneous" vs "Planned"
+
+  // The "Bio Gold" & Deep Dives (Text Fields)
+  bio_headline: text("bio_headline"), // Question 20
+  lifestyle_snapshot: text("lifestyle_snapshot"),
+  relationship_vision: text("relationship_vision"),
+  deal_breakers: text("deal_breakers"),
+
+  // Catch-all for the remaining 20+ answers to keep schema clean
+  onboarding_answers: jsonb("onboarding_answers").default({}),
 
   // Coordinates for the 3.5km domain
   latitude: doublePrecision("latitude"),

@@ -3,49 +3,55 @@ import { VouchForm } from "./vouch-form";
 
 export default function VouchOnboardingPage() {
   return (
-    <main className="min-h-screen bg-background">
-      {/* Header Navigation */}
-      <nav className="p-8 border-b border-border flex justify-between items-center bg-background sticky top-0 z-10">
-        <Link
-          href="/"
-          className="text-2xl font-black tracking-tighter uppercase"
-          aria-label="Vouch Home"
-        >
-          Vouch.
+    <main className="min-h-screen bg-linear-to-br from-rose-50 via-background to-pink-50/30 dark:from-rose-950/20 dark:via-background dark:to-pink-950/10 relative overflow-hidden">
+      {/* Blob */}
+      <div className="pointer-events-none absolute -top-24 -right-24 w-96 h-96 rounded-full bg-rose-200/25 dark:bg-rose-500/8 blur-3xl" />
+
+      {/* Nav */}
+      <nav className="sticky top-0 z-10 flex items-center justify-between px-6 py-4 bg-background/80 dark:bg-background/80 backdrop-blur-lg border-b border-border">
+        <Link href="/" className="flex items-center gap-2">
+          <span className="text-xl font-black tracking-tight">
+            vouch<span className="text-rose-500">.</span>
+          </span>
         </Link>
         <Link
           href="/"
-          className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
+          className="text-xs font-bold text-muted-foreground hover:text-foreground transition-colors"
         >
-          Cancel Registration
+          Cancel
         </Link>
       </nav>
 
-      <div className="max-w-5xl mx-auto px-8 py-16 lg:py-24 space-y-16">
-        {/* Contextual Header */}
-        <header className="space-y-4 max-w-2xl">
-          <h1 className="text-5xl lg:text-7xl font-black tracking-tighter uppercase leading-none">
-            Claim Your <br /> Identity.
+      <div className="relative z-10 max-w-3xl mx-auto px-6 py-12 space-y-10">
+        {/* Header */}
+        <header className="space-y-2 max-w-lg">
+          <p className="text-xs font-bold text-rose-500 uppercase tracking-widest">
+            You were invited 🎉
+          </p>
+          <h1 className="text-4xl font-black tracking-tight leading-tight">
+            Create your account
           </h1>
-          <p className="text-xl text-muted-foreground font-light tracking-tight">
-            Entrance to the network requires a valid Vouch Code and verified
-            institutional standing within your university/school premises.
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Enter your vouch code and student details to join. Only verified
+            students from supported universities can sign up.
           </p>
         </header>
 
-        {/* Interaction Layer */}
-        <div className="bg-card border border-border p-8 lg:p-12">
+        {/* Form card */}
+        <div className="bg-card border border-border rounded-3xl p-6 lg:p-10 shadow-sm">
           <VouchForm />
         </div>
 
-        {/* Footer Metadata */}
-        <footer className="pt-12 border-t border-border flex flex-col md:flex-row justify-between gap-4 text-[10px] uppercase tracking-[0.2em] font-bold text-muted-foreground/50">
-          <div className="flex gap-8">
-            <span>Protocol: Vouch-Beta-v1</span>
-            <span>Auth: RSA-4096 / AES-GCM</span>
-          </div>
-          <span>Uniben / Sector 1 / {new Date().getFullYear()}</span>
-        </footer>
+        {/* Footer */}
+        <p className="text-center text-[10px] text-muted-foreground">
+          Already have an account?{" "}
+          <Link
+            href="/login"
+            className="font-bold text-rose-500 hover:text-rose-600 transition-colors"
+          >
+            Sign in →
+          </Link>
+        </p>
       </div>
     </main>
   );

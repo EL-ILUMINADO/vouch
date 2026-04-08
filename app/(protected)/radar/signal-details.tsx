@@ -40,7 +40,7 @@ export function SignalDetails({
       {/* The Modal Card */}
       <div className="w-full max-w-[320px] bg-card rounded-[2rem] shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Top Banner & Avatar */}
-        <div className="relative h-24 bg-indigo-50 dark:bg-indigo-900/20 flex justify-center">
+        <div className="relative h-24 bg-rose-50 dark:bg-rose-900/20 flex justify-center">
           <button
             onClick={onClose}
             disabled={isPinging}
@@ -51,7 +51,7 @@ export function SignalDetails({
 
           {/* Avatar Bubble overlapping the banner */}
           <div className="absolute -bottom-10 w-20 h-20 bg-card rounded-full p-1.5">
-            <div className="w-full h-full bg-indigo-600 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-md">
+            <div className="w-full h-full bg-linear-to-br from-rose-400 to-pink-500 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-md">
               {signal.name[0]}
             </div>
           </div>
@@ -72,8 +72,8 @@ export function SignalDetails({
 
           {/* Context Badges */}
           <div className="flex justify-center gap-2">
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full text-[10px] font-bold tracking-widest">
-              <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 animate-pulse" />
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 dark:bg-rose-900/20 text-rose-500 dark:text-rose-400 rounded-full text-[10px] font-bold tracking-widest">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-500 dark:bg-rose-400 animate-pulse" />
               {signal.distance.toFixed(2)} KM
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-full text-[10px] font-bold tracking-widest uppercase">
@@ -88,7 +88,7 @@ export function SignalDetails({
           <button
             onClick={handlePing}
             disabled={isPinging}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 dark:shadow-none transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100"
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-200 dark:shadow-none transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100"
           >
             {isPinging ? (
               <Loader2 className="w-4 h-4 animate-spin" />

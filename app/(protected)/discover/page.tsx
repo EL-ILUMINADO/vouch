@@ -34,8 +34,8 @@ export default async function DiscoverPage() {
             className="bg-card rounded-[2rem] overflow-hidden shadow-sm border border-border group"
           >
             {/* Profile Image Placeholder */}
-            <div className="aspect-4/5 bg-indigo-50 dark:bg-indigo-900/20 relative flex items-center justify-center">
-              <span className="text-6xl font-black text-indigo-200 dark:text-indigo-800">
+            <div className="aspect-4/5 bg-rose-50 dark:bg-rose-900/20 relative flex items-center justify-center">
+              <span className="text-6xl font-black text-rose-200 dark:text-rose-800">
                 {peer.name[0]}
               </span>
               <div className="absolute bottom-0 left-0 right-0 p-6 bg-linear-to-t from-black/60 to-transparent">
@@ -53,7 +53,7 @@ export default async function DiscoverPage() {
               <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:bg-accent transition-colors">
                 <X className="w-6 h-6" />
               </button>
-              <button className="flex-1 mx-4 h-12 rounded-full bg-indigo-600 text-white font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-indigo-200 dark:shadow-none active:scale-95 transition-transform">
+              <button className="flex-1 mx-4 h-12 rounded-full bg-rose-500 text-white font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-rose-200 dark:shadow-none active:scale-95 transition-transform">
                 <MessageCircle className="w-4 h-4" /> Ping
               </button>
               <button className="w-12 h-12 rounded-full border border-border flex items-center justify-center text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors">
