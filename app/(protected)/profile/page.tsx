@@ -31,6 +31,12 @@ export default async function ProfilePage() {
       verificationStatus: users.verificationStatus,
       images: users.images,
       profileImage: users.profileImage,
+      // Onboarding fields
+      bioHeadline: users.bio_headline,
+      intent: users.intent,
+      socialEnergy: users.social_energy,
+      energyVibe: users.energy_vibe,
+      interests: users.interests,
     })
     .from(users)
     .where(eq(users.id, session.userId))
@@ -59,46 +65,66 @@ export default async function ProfilePage() {
           verificationStatus={user.verificationStatus}
           initialImages={user.images ?? []}
           initialProfileImage={user.profileImage ?? null}
+          bioHeadline={user.bioHeadline}
+          intent={user.intent}
+          socialEnergy={user.socialEnergy}
+          energyVibe={user.energyVibe}
+          interests={user.interests ?? []}
         />
 
         {/* Vouch Code Management */}
         <section className="space-y-4">
-          <h3 className="text-sm font-black text-foreground uppercase tracking-widest px-2">
-            Your Vouch Codes
-          </h3>
+          <div className="flex items-center justify-between px-2">
+            <h3 className="text-sm font-black text-foreground uppercase tracking-widest">
+              Your Vouch Codes
+            </h3>
+            <span className="text-[10px] font-bold text-muted-foreground">
+              {userCodes.filter((c) => !c.isUsed).length} remaining
+            </span>
+          </div>
           {userCodes.length > 0 ? (
             <div className="space-y-2">
               {userCodes.map(({ code, isUsed }) => (
                 <div
                   key={code}
-                  className="bg-card p-4 rounded-2xl border border-border flex justify-between items-center"
+                  className={`bg-card p-4 rounded-2xl border flex justify-between items-center transition-opacity ${
+                    isUsed
+                      ? "border-border opacity-50"
+                      : "border-rose-200 dark:border-rose-500/20"
+                  }`}
                 >
-                  <code
-                    className={`font-mono font-bold text-sm ${
-                      isUsed
-                        ? "text-muted-foreground line-through"
-                        : "text-indigo-600 dark:text-indigo-400"
-                    }`}
-                  >
-                    {code}
-                  </code>
-                  {isUsed ? (
-                    <span className="text-[10px] font-black uppercase tracking-widest bg-muted px-3 py-1.5 rounded-full text-muted-foreground">
-                      Used
-                    </span>
-                  ) : (
-                    <CopyButtonClient text={code} />
-                  )}
+                  <div className="flex items-center gap-3">
+                    <code
+                      className={`font-mono font-bold text-sm ${
+                        isUsed
+                          ? "text-muted-foreground line-through"
+                          : "text-foreground"
+                      }`}
+                    >
+                      {code}
+                    </code>
+                    {isUsed ? (
+                      <span className="text-[9px] font-black uppercase tracking-widest bg-muted px-2 py-1 rounded-full text-muted-foreground">
+                        Used
+                      </span>
+                    ) : (
+                      <span className="text-[9px] font-black uppercase tracking-widest bg-rose-100 dark:bg-rose-500/15 text-rose-500 px-2 py-1 rounded-full">
+                        Available
+                      </span>
+                    )}
+                  </div>
+                  {!isUsed && <CopyButtonClient text={code} />}
                 </div>
               ))}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground px-2 italic">
-              No vouch codes issued yet.
+              No vouch codes yet.
             </p>
           )}
           <p className="text-[10px] text-muted-foreground px-2 italic">
-            Note: You are responsible for the actions of anyone you vouch for.
+            Share these with friends — you are responsible for who you vouch
+            for.
           </p>
         </section>
 

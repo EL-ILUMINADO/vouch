@@ -95,7 +95,7 @@ export function ChatInterface({
                 className={cn(
                   "max-w-[75%] px-4 py-2.5 rounded-2xl text-sm shadow-sm",
                   isMe
-                    ? "bg-indigo-600 text-white rounded-br-none"
+                    ? "bg-rose-500 text-white rounded-br-none"
                     : "bg-card text-card-foreground border border-border rounded-bl-none",
                 )}
               >
@@ -103,7 +103,7 @@ export function ChatInterface({
                 <div
                   className={cn(
                     "text-[9px] mt-1 opacity-60",
-                    isMe ? "text-indigo-100" : "text-muted-foreground",
+                    isMe ? "text-rose-100" : "text-muted-foreground",
                   )}
                 >
                   {new Date(msg.createdAt).toLocaleTimeString([], {
@@ -127,13 +127,13 @@ export function ChatInterface({
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               placeholder="Type a message..."
-              className="h-12 pl-4 pr-10 rounded-full border-border bg-muted focus:bg-card focus:ring-2 focus:ring-indigo-500/20"
+              className="h-12 pl-4 pr-10 rounded-full border-border bg-muted focus:bg-card focus:ring-2 focus:ring-rose-400/20"
             />
             <Heart className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-rose-400 cursor-pointer hover:scale-110 transition-transform" />
           </div>
           <Button
             type="submit"
-            className="h-12 w-12 rounded-full bg-indigo-600 hover:bg-indigo-700 shadow-md shadow-indigo-200 dark:shadow-none shrink-0 active:scale-95"
+            className="h-12 w-12 rounded-full bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-200 dark:shadow-none shrink-0 active:scale-95"
           >
             <Send className="w-5 h-5 text-white" />
           </Button>

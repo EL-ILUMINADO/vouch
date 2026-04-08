@@ -37,8 +37,8 @@ export function validateBioPrompt(text: string): {
   }
 
   // 5. Length limits (Keep it punchy)
-  if (text.length > 40) {
-    return { valid: false, error: "Keep your answer under 40 characters." };
+  if (text.length > 80) {
+    return { valid: false, error: "Keep your answer under 80 characters." };
   }
 
   return { valid: true };

@@ -9,6 +9,17 @@ import { createSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
 
+function generateVouchCode(): string {
+  // Uses unambiguous chars (no O/0, I/1 confusion)
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const seg = (n: number) =>
+    Array.from(
+      { length: n },
+      () => chars[Math.floor(Math.random() * chars.length)],
+    ).join("");
+  return `${seg(4)}-${seg(4)}`;
+}
+
 const registerSchema = z
   .object({
     email: z.string().email("Invalid institutional email."),
@@ -130,6 +141,14 @@ export async function registerUser(
           .set({ isUsed: true, usedById: newUser.id })
           .where(eq(vouchCodes.id, validCodeId));
       }
+
+      // Give the new user 5 vouch codes to invite others
+      await tx.insert(vouchCodes).values(
+        Array.from({ length: 5 }, () => ({
+          code: generateVouchCode(),
+          issuerId: newUser.id,
+        })),
+      );
 
       // Log them in
       await createSession(newUser.id, false);

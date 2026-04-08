@@ -1,4 +1,5 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -188,7 +189,7 @@ export default function PhotosPage() {
       toast.error(result.error);
       setStatus("picking");
     } else {
-      router.push("/onboarding/verify");
+      router.push("/onboarding/interests");
     }
   };
 
@@ -197,8 +198,8 @@ export default function PhotosPage() {
     return (
       <main className="min-h-screen bg-background flex flex-col items-center justify-center p-6 max-w-md mx-auto">
         <div className="w-full text-center mb-8">
-          <div className="w-12 h-12 rounded-full bg-indigo-600/15 flex items-center justify-center mx-auto mb-4">
-            <UserCircle2 className="w-6 h-6 text-indigo-500" />
+          <div className="w-12 h-12 rounded-full bg-rose-500/15 flex items-center justify-center mx-auto mb-4">
+            <UserCircle2 className="w-6 h-6 text-rose-500" />
           </div>
           <h1 className="text-3xl font-black tracking-tight mb-2">
             Your Profile Photo
@@ -218,7 +219,7 @@ export default function PhotosPage() {
                 disabled={status === "confirming"}
                 className={`relative aspect-3/4 rounded-2xl overflow-hidden border-2 transition-all ${
                   isSelected
-                    ? "border-indigo-500 ring-2 ring-indigo-500/40 scale-[1.02]"
+                    ? "border-rose-500 ring-2 ring-rose-500/40 scale-[1.02]"
                     : "border-border opacity-60 hover:opacity-80"
                 }`}
               >
@@ -228,8 +229,8 @@ export default function PhotosPage() {
                   className="w-full h-full object-cover"
                 />
                 {isSelected && (
-                  <div className="absolute inset-0 bg-indigo-500/20 flex items-end justify-center pb-3">
-                    <span className="bg-indigo-600 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1">
+                  <div className="absolute inset-0 bg-rose-500/20 flex items-end justify-center pb-3">
+                    <span className="bg-rose-500 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full flex items-center gap-1">
                       <Check className="w-3 h-3" /> Selected
                     </span>
                   </div>
@@ -243,7 +244,7 @@ export default function PhotosPage() {
           <button
             onClick={confirmProfilePhoto}
             disabled={!selectedProfileUrl || status === "confirming"}
-            className="w-full py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95"
+            className="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95"
           >
             {status === "confirming" ? (
               <>
@@ -262,11 +263,15 @@ export default function PhotosPage() {
   return (
     <main className="min-h-screen bg-background flex flex-col items-center justify-center p-6 max-w-md mx-auto">
       <div className="w-full text-center mb-8">
+        <p className="text-xs font-bold text-rose-500 uppercase tracking-widest mb-2">
+          Step 2 of 4
+        </p>
         <h1 className="text-3xl font-black tracking-tight mb-2">
-          Vouch Security
+          Add your photos
         </h1>
         <p className="text-muted-foreground text-sm">
-          Upload 2-4 clear photos of yourself to enter the Domain.
+          Upload 2–4 clear photos. They&apos;re scanned automatically before
+          going live.
         </p>
       </div>
 
@@ -326,7 +331,7 @@ export default function PhotosPage() {
         {status === "scanning" && (
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4">
             <div className="flex justify-between items-end">
-              <p className="text-xs font-black uppercase tracking-[0.2em] text-indigo-500">
+              <p className="text-xs font-black uppercase tracking-[0.2em] text-rose-500">
                 {botMessage}
               </p>
               <p className="text-xs font-mono font-bold text-muted-foreground">
@@ -335,7 +340,7 @@ export default function PhotosPage() {
             </div>
             <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
               <div
-                className="h-full bg-indigo-500 transition-all duration-150 ease-linear"
+                className="h-full bg-rose-500 transition-all duration-150 ease-linear"
                 style={{ width: `${progress}%` }}
               />
             </div>
@@ -346,7 +351,7 @@ export default function PhotosPage() {
           <button
             disabled={files.length < 2}
             onClick={startSecurityScan}
-            className="w-full py-4 bg-foreground text-background rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95"
+            className="w-full py-4 bg-rose-500 hover:bg-rose-600 text-white rounded-2xl font-bold flex items-center justify-center gap-2 disabled:opacity-50 transition-all active:scale-95"
           >
             <ShieldCheck size={18} />
             Begin Security Vetting

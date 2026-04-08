@@ -66,9 +66,9 @@ export function LoginForm() {
         type="submit"
         size="lg"
         disabled={isPending}
-        className="w-full h-14 text-base bg-foreground text-background hover:bg-foreground/90 disabled:cursor-not-allowed"
+        className="w-full h-14 text-base font-bold rounded-2xl bg-linear-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white border-0 shadow-lg shadow-rose-200/60 dark:shadow-none disabled:cursor-not-allowed"
       >
-        {isPending ? "Authenticating..." : "Initialize Session"}
+        {isPending ? "Signing in..." : "Sign In"}
       </Button>
     </form>
   );

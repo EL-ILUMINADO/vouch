@@ -39,13 +39,13 @@ export function RadarDisplay({
       </div>
 
       <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
-        <div className="bg-indigo-600 text-white px-4 py-1.5 rounded-full shadow-md">
+        <div className="bg-rose-500 text-white px-4 py-1.5 rounded-full shadow-md">
           <p className="text-[10px] font-black uppercase tracking-widest">
             {totalSignals} Active Signals
           </p>
         </div>
         <div className="bg-card/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-border shadow-sm">
-          <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">
+          <p className="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-widest">
             Range: {radarRange.toFixed(1)} KM
           </p>
         </div>
@@ -73,10 +73,10 @@ export function RadarDisplay({
           ))}
 
           <div className="absolute inset-0 animate-radar-sweep pointer-events-none z-10 rounded-full overflow-hidden">
-            <div className="w-1/2 h-full bg-linear-to-r from-indigo-500/15 to-transparent origin-right" />
+            <div className="w-1/2 h-full bg-linear-to-r from-rose-500/15 to-transparent origin-right" />
           </div>
 
-          <div className="relative z-30 w-4 h-4 bg-indigo-600 rounded-full border-2 border-white dark:border-slate-950 shadow-lg" />
+          <div className="relative z-30 w-4 h-4 bg-rose-500 rounded-full border-2 border-white dark:border-slate-950 shadow-lg" />
 
           {processedSignals.map((signal) => (
             <RadarSignalItem
@@ -96,10 +96,10 @@ export function RadarDisplay({
             <button
               key={signal.id}
               onClick={() => setSelectedSignal(signal)}
-              className="shrink-0 w-[240px] snap-center bg-card p-4 rounded-3xl border border-border text-left hover:border-indigo-500 transition-all group shadow-sm"
+              className="shrink-0 w-[240px] snap-center bg-card p-4 rounded-3xl border border-border text-left hover:border-rose-400 transition-all group shadow-sm"
             >
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white font-black text-lg">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center text-white font-black text-lg">
                   {signal.name[0]}
                 </div>
                 <div className="flex-1 min-w-0">

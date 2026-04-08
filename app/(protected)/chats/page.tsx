@@ -43,7 +43,7 @@ export default async function ChatsPage() {
         <h1 className="text-3xl font-black text-foreground tracking-tighter italic">
           CHATS.
         </h1>
-        <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-[0.2em] mt-1">
+        <p className="text-[10px] font-bold text-rose-500 uppercase tracking-[0.2em] mt-1">
           {userConversations.length} Active Connections
         </p>
       </header>
@@ -62,7 +62,7 @@ export default async function ChatsPage() {
               className="flex items-center gap-4 p-4 rounded-[1.5rem] hover:bg-accent transition-all active:scale-[0.98] group"
             >
               {/* Avatar Bubble */}
-              <div className="w-14 h-14 rounded-full bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 font-bold text-xl border-2 border-transparent group-hover:border-indigo-200 dark:group-hover:border-indigo-800 transition-all">
+              <div className="w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold text-xl border-2 border-transparent group-hover:border-rose-200 dark:group-hover:border-rose-800 transition-all">
                 {convo.otherUser.name[0]}
               </div>
 

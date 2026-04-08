@@ -58,7 +58,7 @@ export async function deleteAccount(): Promise<{ error?: string }> {
   if (!token) redirect("/login");
 
   const session = await decrypt(token);
-  if (!session) redirect("/login");
+  if (!session) redirect("/");
 
   const userId = session.userId;
 

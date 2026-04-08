@@ -41,8 +41,8 @@ export const RadarSignalItem = ({
     >
       <div className="w-11 h-11 flex items-center justify-center -m-5 bg-transparent group">
         <div className="relative">
-          <div className="w-3.5 h-3.5 bg-indigo-600 dark:bg-indigo-500 rounded-full border-2 border-white dark:border-slate-950 shadow-lg group-hover:scale-125 transition-all" />
-          <div className="absolute inset-0 w-full h-full bg-indigo-400 rounded-full animate-ping opacity-20" />
+          <div className="w-3.5 h-3.5 bg-rose-500 dark:bg-rose-400 rounded-full border-2 border-white dark:border-slate-950 shadow-lg group-hover:scale-125 transition-all" />
+          <div className="absolute inset-0 w-full h-full bg-rose-400 rounded-full animate-ping opacity-20" />
         </div>
       </div>
     </button>
