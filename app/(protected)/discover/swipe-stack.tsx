@@ -110,7 +110,16 @@ export function SwipeStack({
 
   const handleSwipe = (dir: "left" | "right") => {
     if (!current || flyDir) return;
-    if (dir === "right") recordLike(current.id).catch(() => {});
+    if (dir === "right") {
+      // Fire-and-forget, but redirect if a mutual match is created
+      recordLike(current.id)
+        .then((result) => {
+          if (result.matched && result.conversationId) {
+            router.push(`/uplink/${result.conversationId}`);
+          }
+        })
+        .catch(() => {});
+    }
     popCard(current, dir);
   };
 

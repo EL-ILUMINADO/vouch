@@ -10,7 +10,7 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { logout, deleteAccount } from "./actions";
+import { logout, deleteAccount, toggleCodePublic } from "./actions";
 
 // ---------------------------------------------------------------------------
 // Logout button
@@ -215,6 +215,49 @@ export function CopyButtonClient({ text }: { text: string }) {
     >
       {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
       {copied ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Per-code public / private toggle
+// ---------------------------------------------------------------------------
+
+export function CodeVisibilityToggle({
+  codeId,
+  initialIsPublic,
+}: {
+  codeId: string;
+  initialIsPublic: boolean;
+}) {
+  const [isPublic, setIsPublic] = React.useState(initialIsPublic);
+  const [pending, setPending] = React.useState(false);
+
+  const handle = async () => {
+    setPending(true);
+    const next = !isPublic;
+    setIsPublic(next); // optimistic
+    const result = await toggleCodePublic(codeId, next);
+    if (result.error) setIsPublic(!next); // revert on error
+    setPending(false);
+  };
+
+  return (
+    <button
+      onClick={handle}
+      disabled={pending}
+      title={
+        isPublic
+          ? "Listed on the code board — click to make private"
+          : "Private — click to list publicly"
+      }
+      className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full transition-all disabled:opacity-50 ${
+        isPublic
+          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-rose-500/10 hover:text-rose-500"
+          : "bg-muted text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600"
+      }`}
+    >
+      {isPublic ? "Public" : "Private"}
     </button>
   );
 }

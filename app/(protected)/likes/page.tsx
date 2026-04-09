@@ -1,11 +1,12 @@
 /* eslint-disable @next/next/no-img-element */
 import { db } from "@/db";
 import { likes, users } from "@/db/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { Lock, Heart } from "lucide-react";
+import { LikerActions } from "./liker-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,7 +19,7 @@ export default async function LikesPage() {
 
   const currentUserId = session.userId as string;
 
-  // Fetch all likers with their profile data
+  // Only show pending likes (not ones the user has already rejected)
   const likerRows = await db
     .select({
       likedAt: likes.createdAt,
@@ -36,7 +37,9 @@ export default async function LikesPage() {
     })
     .from(likes)
     .innerJoin(users, eq(likes.likerId, users.id))
-    .where(eq(likes.likedUserId, currentUserId))
+    .where(
+      and(eq(likes.likedUserId, currentUserId), eq(likes.status, "pending")),
+    )
     .orderBy(desc(likes.createdAt));
 
   const total = likerRows.length;
@@ -81,7 +84,7 @@ export default async function LikesPage() {
 
           {/* Pro upsell banner */}
           {lockedCount > 0 && (
-            <div className="bg-gradient-to-br from-rose-500/10 to-pink-500/10 border border-rose-500/20 rounded-2xl p-5 text-center space-y-2">
+            <div className="bg-linear-to-br from-rose-500/10 to-pink-500/10 border border-rose-500/20 rounded-2xl p-5 text-center space-y-2">
               <div className="w-10 h-10 bg-rose-500 rounded-full flex items-center justify-center mx-auto">
                 <Lock className="w-5 h-5 text-white" />
               </div>
@@ -108,7 +111,7 @@ export default async function LikesPage() {
 }
 
 // ---------------------------------------------------------------------------
-// Liker card (visible)
+// Liker card (visible) — includes Like Back / Pass buttons
 // ---------------------------------------------------------------------------
 
 function LikerCard({
@@ -162,6 +165,8 @@ function LikerCard({
             {liker.bio_headline}
           </p>
         )}
+        {/* Action buttons rendered client-side */}
+        <LikerActions likerId={liker.id} />
       </div>
     </div>
   );

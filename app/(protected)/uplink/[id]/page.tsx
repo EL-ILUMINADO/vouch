@@ -1,13 +1,16 @@
 import { db } from "@/db";
 import { conversations, messages, users } from "@/db/schema";
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ChatInterface } from "./chat-interface";
 import { ReportDialog } from "@/components/chat/report-dialog";
+import { ClosedChatBanner } from "./closed-chat-banner";
 
 export const dynamic = "force-dynamic";
+
+const INACTIVITY_MS = 24 * 60 * 60 * 1000; // 24 hours
 
 interface UplinkPageProps {
   params: Promise<{ id: string }>;
@@ -22,6 +25,8 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
   const session = await decrypt(token);
   if (!session) redirect("/login");
 
+  const currentUserId = session.userId as string;
+
   const [convo] = await db
     .select()
     .from(conversations)
@@ -30,13 +35,53 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
 
   if (
     !convo ||
-    (convo.userOneId !== session.userId && convo.userTwoId !== session.userId)
+    (convo.userOneId !== currentUserId && convo.userTwoId !== currentUserId)
   ) {
     return notFound();
   }
 
+  // --- Lazy 24h inactivity enforcement ---
+  if (convo.status === "active") {
+    // eslint-disable-next-line react-hooks/purity -- server component, not a hook
+    const inactiveMs = Date.now() - new Date(convo.lastActivityAt).getTime();
+    if (inactiveMs > INACTIVITY_MS) {
+      // Find who sent the last message to determine who is "at fault"
+      const [lastMsg] = await db
+        .select({ senderId: messages.senderId })
+        .from(messages)
+        .where(eq(messages.conversationId, conversationId))
+        .orderBy(desc(messages.createdAt))
+        .limit(1);
+
+      // At-fault = the user who did NOT send the last message (they should have replied)
+      let closedByUserId: string | null = null;
+      if (lastMsg) {
+        closedByUserId =
+          lastMsg.senderId === convo.userOneId
+            ? convo.userTwoId
+            : convo.userOneId;
+      }
+
+      const now = new Date();
+      await db
+        .update(conversations)
+        .set({
+          status: "closed_inactive",
+          closedAt: now,
+          closedByUserId,
+          updatedAt: now,
+        })
+        .where(eq(conversations.id, conversationId));
+
+      // Reflect closure in local object so the rest of the page renders correctly
+      convo.status = "closed_inactive";
+      convo.closedByUserId = closedByUserId;
+    }
+  }
+
   const otherUserId =
-    convo.userOneId === session.userId ? convo.userTwoId : convo.userOneId;
+    convo.userOneId === currentUserId ? convo.userTwoId : convo.userOneId;
+
   const [otherUser] = await db
     .select()
     .from(users)
@@ -48,6 +93,8 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
     .from(messages)
     .where(eq(messages.conversationId, conversationId))
     .orderBy(asc(messages.createdAt));
+
+  const isClosed = convo.status === "closed_inactive";
 
   return (
     <main className="h-screen flex flex-col bg-background">
@@ -63,6 +110,11 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
             {otherUser.department} • {otherUser.level}
           </p>
         </div>
+        {isClosed && (
+          <span className="text-[9px] font-black uppercase tracking-widest bg-muted text-muted-foreground px-2 py-1 rounded-full">
+            Closed
+          </span>
+        )}
         <ReportDialog
           conversationId={conversationId}
           reportedUserId={otherUser.id}
@@ -70,11 +122,45 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
         />
       </header>
 
-      <ChatInterface
-        initialMessages={JSON.parse(JSON.stringify(history))}
-        conversationId={conversationId}
-        currentUserId={session.userId as string}
-      />
+      {isClosed ? (
+        <>
+          {/* Greyed-out history */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 opacity-30 pointer-events-none select-none">
+            {history.map((msg) => {
+              const isMe = msg.senderId === currentUserId;
+              return (
+                <div
+                  key={msg.id}
+                  className={`flex w-full ${isMe ? "justify-end" : "justify-start"}`}
+                >
+                  <div
+                    className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                      isMe
+                        ? "bg-rose-500 text-white rounded-br-none"
+                        : "bg-card text-card-foreground border border-border rounded-bl-none"
+                    }`}
+                  >
+                    {msg.content}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Closed state banner with re-like CTA */}
+          <ClosedChatBanner
+            isAtFault={convo.closedByUserId === currentUserId}
+            otherUserId={otherUserId}
+            otherUserName={otherUser.name}
+          />
+        </>
+      ) : (
+        <ChatInterface
+          initialMessages={JSON.parse(JSON.stringify(history))}
+          conversationId={conversationId}
+          currentUserId={currentUserId}
+        />
+      )}
     </main>
   );
 }

@@ -9,6 +9,7 @@ import {
   pgEnum,
   doublePrecision,
   jsonb,
+  unique,
 } from "drizzle-orm/pg-core";
 
 export const verificationStatusEnum = pgEnum("verification_status", [
@@ -108,8 +109,15 @@ export const vouchCodes = pgTable("vouch_codes", {
     .notNull(),
   isUsed: boolean("is_used").default(false).notNull(),
   usedById: uuid("used_by_id").references(() => users.id),
+  // When true, the code appears on the public /codes board
+  isPublic: boolean("is_public").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+export const conversationStatusEnum = pgEnum("conversation_status", [
+  "active",
+  "closed_inactive",
+]);
 
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -119,6 +127,12 @@ export const conversations = pgTable("conversations", {
   userTwoId: uuid("user_two_id")
     .references(() => users.id)
     .notNull(),
+  status: conversationStatusEnum("status").default("active").notNull(),
+  // Updated whenever a message is sent; used for 24h inactivity enforcement
+  lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
+  closedAt: timestamp("closed_at"),
+  // The user who failed to respond within 24h and caused the closure
+  closedByUserId: uuid("closed_by_user_id").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -152,16 +166,25 @@ export const platformMessages = pgTable("platform_messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const likes = pgTable("likes", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  likerId: uuid("liker_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  likedUserId: uuid("liked_user_id")
-    .references(() => users.id, { onDelete: "cascade" })
-    .notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+export const likeStatusEnum = pgEnum("like_status", ["pending", "rejected"]);
+
+export const likes = pgTable(
+  "likes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    likerId: uuid("liker_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    likedUserId: uuid("liked_user_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    status: likeStatusEnum("status").default("pending").notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("likes_liker_liked_unique").on(table.likerId, table.likedUserId),
+  ],
+);
 
 export const reportStatusEnum = pgEnum("report_status", [
   "pending",

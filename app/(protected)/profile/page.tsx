@@ -5,10 +5,13 @@ import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import {
   LogoutButton,
   DeleteAccountButton,
   CopyButtonClient,
+  CodeVisibilityToggle,
 } from "./account-actions";
 import { ProfileCard } from "./profile-card";
 import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
@@ -47,7 +50,12 @@ export default async function ProfilePage() {
   if (!user) redirect("/login");
 
   const userCodes = await db
-    .select({ code: vouchCodes.code, isUsed: vouchCodes.isUsed })
+    .select({
+      id: vouchCodes.id,
+      code: vouchCodes.code,
+      isUsed: vouchCodes.isUsed,
+      isPublic: vouchCodes.isPublic,
+    })
     .from(vouchCodes)
     .where(eq(vouchCodes.issuerId, user.id));
 
@@ -88,16 +96,16 @@ export default async function ProfilePage() {
           </div>
           {userCodes.length > 0 ? (
             <div className="space-y-2">
-              {userCodes.map(({ code, isUsed }) => (
+              {userCodes.map(({ id, code, isUsed, isPublic }) => (
                 <div
                   key={code}
-                  className={`bg-card p-4 rounded-2xl border flex justify-between items-center transition-opacity ${
+                  className={`bg-card p-4 rounded-2xl border flex justify-between items-center gap-2 transition-opacity ${
                     isUsed
                       ? "border-border opacity-50"
                       : "border-rose-200 dark:border-rose-500/20"
                   }`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 min-w-0 flex-wrap">
                     <code
                       className={`font-mono font-bold text-sm ${
                         isUsed
@@ -112,9 +120,16 @@ export default async function ProfilePage() {
                         Used
                       </span>
                     ) : (
-                      <span className="text-[9px] font-black uppercase tracking-widest bg-rose-100 dark:bg-rose-500/15 text-rose-500 px-2 py-1 rounded-full">
-                        Available
-                      </span>
+                      <>
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-rose-100 dark:bg-rose-500/15 text-rose-500 px-2 py-1 rounded-full">
+                          Available
+                        </span>
+                        {/* Public / Private toggle — only on unused codes */}
+                        <CodeVisibilityToggle
+                          codeId={id}
+                          initialIsPublic={isPublic}
+                        />
+                      </>
                     )}
                   </div>
                   {!isUsed && <CopyButtonClient text={code} />}
@@ -126,10 +141,20 @@ export default async function ProfilePage() {
               No vouch codes yet.
             </p>
           )}
-          <p className="text-[10px] text-muted-foreground px-2 italic">
-            Share these with friends — you are responsible for who you vouch
-            for.
-          </p>
+          <div className="flex items-center justify-between px-2">
+            <p className="text-[10px] text-muted-foreground italic">
+              Share these with friends — you are responsible for who you vouch
+              for.
+            </p>
+            <Link
+              href="/codes"
+              target="_blank"
+              className="flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors shrink-0 ml-3"
+            >
+              Code board
+              <ExternalLink className="w-2.5 h-2.5" />
+            </Link>
+          </div>
         </section>
 
         {/* App Settings */}
