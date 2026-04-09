@@ -10,7 +10,6 @@ import { PhaseTwo } from "./PhaseTwo";
 import { PhaseThree } from "./PhaseThree";
 import { PhaseFour } from "./PhaseFour";
 import { saveUserBio } from "@/app/(onboarding)/onboarding/bio/actions";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 
@@ -35,7 +34,6 @@ const PHASE_CONTEXT: Record<
 type BioFormData = z.infer<typeof completeOnboardingSchema>;
 
 export function BioWizard() {
-  const router = useRouter();
   const [currentPhase, setCurrentPhase] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 

@@ -6,18 +6,29 @@ import { eq } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
-import { calculateDistance } from "@/lib/utils/geo";
+import { checkUniversityProximity } from "@/lib/utils/geo";
 import { redirect } from "next/navigation";
-import { z } from "zod";
 
 export type GeoState = {
   error?: string;
   success?: boolean;
 };
 
+/**
+ * Verifies that the user's GPS fix is within their university's boundaries.
+ *
+ * @param lat      - WGS-84 latitude reported by the browser
+ * @param lng      - WGS-84 longitude reported by the browser
+ * @param accuracyM - Horizontal accuracy radius in metres as reported by the
+ *                    browser's Geolocation API (position.coords.accuracy).
+ *                    The server adds this value (capped at 1 500 m) to each
+ *                    zone radius before the distance check, so a user whose
+ *                    phone GPS is drifted by 300 m is not falsely rejected.
+ */
 export async function verifyLocation(
   lat: number,
   lng: number,
+  accuracyM: number,
 ): Promise<GeoState> {
   const cookieStore = await cookies();
   const token = cookieStore.get("vouch_session")?.value;
@@ -41,21 +52,22 @@ export async function verifyLocation(
     );
     if (!uniConfig) return { error: "University sector not recognized." };
 
-    const distance = calculateDistance(
-      lat,
-      lng,
-      uniConfig.coordinates.lat,
-      uniConfig.coordinates.lng,
-    );
+    const result = checkUniversityProximity(lat, lng, accuracyM, uniConfig);
 
-    if (distance > uniConfig.radiusKm) {
+    if (!result.within) {
+      const distanceStr = result.distanceKm.toFixed(2);
+      const radiusStr = result.effectiveRadiusKm.toFixed(2);
+      const accuracyStr = Math.round(result.accuracyUsedM);
       return {
-        error: `Outside ${uniConfig.name} boundaries. Distance: ${distance.toFixed(2)}km. Required: within ${uniConfig.radiusKm}km.`,
+        error:
+          `Outside ${uniConfig.name} boundaries. ` +
+          `Closest zone: ${result.closestZoneLabel}. ` +
+          `Distance: ${distanceStr} km — allowed: ${radiusStr} km ` +
+          `(includes ${accuracyStr} m GPS tolerance). ` +
+          `Move to an open area for a better GPS fix and try again.`,
       };
     }
 
-    // Store coordinates alongside verification status so the radar
-    // can calculate distances relative to the user's actual position.
     await db
       .update(users)
       .set({
@@ -71,39 +83,5 @@ export async function verifyLocation(
     return { error: "Telemetry failure. Retry." };
   }
 
-  redirect("/onboarding/photos");
-}
-
-const documentSchema = z.object({
-  file: z
-    .instanceof(File)
-    .refine((file) => file.size < 5_000_000, "File must be under 5MB."),
-});
-
-export async function verifyDocument(
-  _prevState: unknown,
-  formData: FormData,
-): Promise<{ error?: string; success?: boolean }> {
-  const file = formData.get("document") as File;
-
-  if (!file || file.size === 0) {
-    return { error: "No document detected in uplink." };
-  }
-
-  try {
-    // Validate schema before any processing
-    documentSchema.parse({ file });
-
-    // Simulate OCR processing time
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    // TODO: Implement actual OCR text extraction.
-    // Logic: Look for university name and current academic session.
-
-    return {
-      error: "OCR Analysis: Manual review required. Sector admin notified.",
-    };
-  } catch {
-    return { error: "Uplink failure during document transmission." };
-  }
+  redirect("/radar");
 }

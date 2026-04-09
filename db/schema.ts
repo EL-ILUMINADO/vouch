@@ -15,6 +15,7 @@ export const verificationStatusEnum = pgEnum("verification_status", [
   "unverified",
   "pending_review",
   "verified",
+  "rejected",
   "banned",
 ]);
 
@@ -84,6 +85,10 @@ export const users = pgTable("users", {
     .notNull(),
   vouchedById: uuid("vouched_by_id"),
   requiresPulseCheck: boolean("requires_pulse_check").default(false).notNull(),
+  verificationVideoUrl: text("verification_video_url"),
+
+  // Captcha lockout (null = not locked; future timestamp = locked until that time)
+  captchaLockedUntil: timestamp("captcha_locked_until", { mode: "date" }),
 
   // Moderation
   trustScore: integer("trust_score").default(0).notNull(),

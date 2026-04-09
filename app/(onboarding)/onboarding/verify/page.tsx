@@ -1,9 +1,35 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ShieldCheck } from "lucide-react";
+import { decrypt } from "@/lib/auth";
+import { db } from "@/db";
+import { users } from "@/db/schema";
+import { eq } from "drizzle-orm";
+import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
 import { PulseCheck } from "./pulse-check";
-import { FileText, ShieldCheck } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { CultureCheckCard } from "./culture-check-card";
 
-export default function VerificationHub() {
+export default async function VerificationHub() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) redirect("/onboarding/vouch");
+
+  const session = await decrypt(token);
+  if (!session) redirect("/onboarding/vouch");
+
+  const [user] = await db
+    .select({ university: users.university })
+    .from(users)
+    .where(eq(users.id, session.userId as string))
+    .limit(1);
+
+  if (!user) redirect("/onboarding/vouch");
+
+  const uniConfig = SUPPORTED_UNIVERSITIES.find(
+    (u) => u.id === user.university,
+  );
+  const universityName = uniConfig?.name ?? user.university;
+
   return (
     <main className="min-h-screen bg-linear-to-br from-rose-50 via-background to-pink-50/30 dark:from-rose-950/20 dark:via-background dark:to-pink-950/10 flex flex-col items-center justify-center p-6 relative overflow-hidden">
       {/* Blob */}
@@ -25,41 +51,15 @@ export default function VerificationHub() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <PulseCheck />
-
-          {/* Option B: Document upload */}
-          <div
-            className={cn(
-              "group relative flex flex-col justify-between p-8 rounded-3xl border-2 transition-all duration-300 min-h-[320px] cursor-pointer",
-              "border-border bg-card text-foreground",
-              "hover:border-rose-300 dark:hover:border-rose-500/50 hover:shadow-lg",
-            )}
-          >
-            <div className="space-y-5">
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 dark:bg-rose-500/10 flex items-center justify-center">
-                <FileText className="w-6 h-6 text-rose-500" />
-              </div>
-              <div className="space-y-2">
-                <h3 className="text-xl font-black tracking-tight">
-                  Student ID
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Upload your student ID or admission letter for manual review.
-                </p>
-              </div>
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full h-12 rounded-2xl border-border font-bold mt-6"
-            >
-              Upload Document
-            </Button>
-          </div>
+          <CultureCheckCard
+            universityId={user.university}
+            universityName={universityName}
+          />
         </div>
 
         <footer className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">
           <ShieldCheck className="w-3.5 h-3.5 text-rose-400" />
-          <span>Your location is only used for campus verification</span>
+          <span>Your data is only used for campus verification</span>
         </footer>
       </div>
     </main>
