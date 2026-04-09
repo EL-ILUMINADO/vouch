@@ -1,12 +1,34 @@
 "use server";
 
+import { conversations } from "@/db/schema";
 import { db } from "@/db";
-import { conversations, likes } from "@/db/schema";
 import { and, or, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { recordLikeAndCheckMatch } from "@/lib/match";
 
+/**
+ * Records a like and checks for a mutual match.
+ * Returns the conversationId if both users have now liked each other.
+ */
+export async function recordLike(
+  likedUserId: string,
+): Promise<{ matched: boolean; conversationId?: string }> {
+  const cookieStore = await cookies();
+  const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
+  if (!session) return { matched: false };
+
+  const likerId = session.userId as string;
+  if (likerId === likedUserId) return { matched: false };
+
+  return recordLikeAndCheckMatch(likerId, likedUserId);
+}
+
+/**
+ * Opens a direct conversation with another user (Ping / Radar flow).
+ * Does NOT require mutual likes — this is the explicit "I want to chat" path.
+ */
 export async function pingUser(
   otherUserId: string,
 ): Promise<{ conversationId: string }> {
@@ -43,15 +65,4 @@ export async function pingUser(
     .returning({ id: conversations.id });
 
   return { conversationId: newConvo.id };
-}
-
-export async function recordLike(likedUserId: string): Promise<void> {
-  const cookieStore = await cookies();
-  const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
-  if (!session) return;
-
-  const likerId = session.userId as string;
-  if (likerId === likedUserId) return;
-
-  await db.insert(likes).values({ likerId, likedUserId }).onConflictDoNothing();
 }

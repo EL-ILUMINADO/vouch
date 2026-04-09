@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { users, conversations, messages, vouchCodes } from "@/db/schema";
-import { eq, or } from "drizzle-orm";
+import { eq, or, and } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cloudinary } from "@/lib/cloudinary";
 import { cookies } from "next/headers";
@@ -215,6 +215,25 @@ export async function toggleHideLevel(
     return {};
   } catch {
     return { error: "Failed to update setting." };
+  }
+}
+
+export async function toggleCodePublic(
+  codeId: string,
+  isPublic: boolean,
+): Promise<{ error?: string }> {
+  const userId = await requireSession();
+  try {
+    await db
+      .update(vouchCodes)
+      .set({ isPublic })
+      .where(
+        // Ensure the code actually belongs to this user
+        and(eq(vouchCodes.id, codeId), eq(vouchCodes.issuerId, userId)),
+      );
+    return {};
+  } catch {
+    return { error: "Failed to update code visibility." };
   }
 }
 

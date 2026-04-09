@@ -13,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
+import Link from "next/link";
 
 const initialState: RegisterState = {};
 
@@ -30,11 +31,20 @@ export function VouchForm() {
         </h3>
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="vouchCode">Vouch Code</Label>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="vouchCode">Vouch Code</Label>
+              <Link
+                href="/codes"
+                target="_blank"
+                className="text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors"
+              >
+                No code? Browse the board →
+              </Link>
+            </div>
             <Input
               id="vouchCode"
               name="vouchCode"
-              placeholder="VC-XXXX-XXXX"
+              placeholder="XXXX-XXXX"
               required
               disabled={isPending}
             />

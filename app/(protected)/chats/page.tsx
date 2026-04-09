@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { conversations, users, platformMessages } from "@/db/schema";
-import { eq, or, desc, sql, and } from "drizzle-orm";
+import { eq, or, desc, sql, and, ne } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
 import Link from "next/link";
@@ -32,9 +32,12 @@ export default async function ChatsPage() {
           ),
         )
         .where(
-          or(
-            eq(conversations.userOneId, currentUserId),
-            eq(conversations.userTwoId, currentUserId),
+          and(
+            or(
+              eq(conversations.userOneId, currentUserId),
+              eq(conversations.userTwoId, currentUserId),
+            ),
+            ne(conversations.status, "closed_inactive"),
           ),
         )
         .orderBy(desc(conversations.updatedAt)),
@@ -72,7 +75,7 @@ export default async function ChatsPage() {
           CHATS.
         </h1>
         <p className="text-[10px] font-bold text-rose-500 uppercase tracking-[0.2em] mt-1">
-          {totalConnections} Active Connection
+          {totalConnections} Chat
           {totalConnections !== 1 ? "s" : ""}
         </p>
       </header>

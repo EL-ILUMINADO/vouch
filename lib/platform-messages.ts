@@ -3,6 +3,7 @@
 import { db } from "@/db";
 import { platformMessages, users } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
+import { pusherServer } from "./pusher-server";
 
 type MessageType = "warning" | "promotion" | "announcement";
 
@@ -11,7 +12,20 @@ export async function sendPlatformMessage(
   content: string,
   type: MessageType = "announcement",
 ): Promise<void> {
-  await db.insert(platformMessages).values({ recipientId, content, type });
+  const [msg] = await db
+    .insert(platformMessages)
+    .values({ recipientId, content, type })
+    .returning();
+
+  // Push to the recipient's personal channel so their inbox updates instantly
+  await pusherServer
+    .trigger(`user-${recipientId}`, "platform-message", {
+      id: msg.id,
+      content: msg.content,
+      type: msg.type,
+      createdAt: msg.createdAt,
+    })
+    .catch(() => {}); // don't fail the send if Pusher is unreachable
 }
 
 export async function sendPlatformMessageToAll(
@@ -21,9 +35,20 @@ export async function sendPlatformMessageToAll(
   const allUsers = await db.select({ id: users.id }).from(users);
   if (allUsers.length === 0) return;
 
-  await db
+  const [firstMsg] = await db
     .insert(platformMessages)
-    .values(allUsers.map((u) => ({ recipientId: u.id, content, type })));
+    .values(allUsers.map((u) => ({ recipientId: u.id, content, type })))
+    .returning();
+
+  // Broadcast on the shared announcements channel — all clients listen here
+  await pusherServer
+    .trigger("vouch-announcements", "platform-message", {
+      id: firstMsg?.id,
+      content,
+      type,
+      createdAt: firstMsg?.createdAt ?? new Date(),
+    })
+    .catch(() => {});
 }
 
 const WARNING_COPY: Record<number, string> = {
