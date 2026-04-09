@@ -24,10 +24,12 @@ export default async function ProfilePage() {
   const [user] = await db
     .select({
       id: users.id,
+      email: users.email,
       name: users.name,
       university: users.university,
       department: users.department,
       level: users.level,
+      hideLevel: users.hideLevel,
       verificationStatus: users.verificationStatus,
       images: users.images,
       profileImage: users.profileImage,
@@ -59,9 +61,11 @@ export default async function ProfilePage() {
         {/* Profile Card + Photo Management (shared client state for instant avatar updates) */}
         <ProfileCard
           name={user.name}
+          email={user.email}
           university={uniName}
           department={user.department}
           level={user.level}
+          hideLevel={user.hideLevel}
           verificationStatus={user.verificationStatus}
           initialImages={user.images ?? []}
           initialProfileImage={user.profileImage ?? null}

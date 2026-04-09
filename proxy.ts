@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifyAdminSession } from "@/lib/admin-auth";
 
 const PUBLIC_ROUTES = [
   "/",
@@ -8,9 +9,26 @@ const PUBLIC_ROUTES = [
   "/onboarding/verify",
 ];
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // --- Admin routes ---
+  if (pathname.startsWith("/admin")) {
+    if (pathname === "/admin/login") {
+      return NextResponse.next();
+    }
+
+    const adminToken = request.cookies.get("vouch_admin")?.value;
+    const isAdmin = adminToken ? await verifyAdminSession(adminToken) : false;
+
+    if (!isAdmin) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+
+    return NextResponse.next();
+  }
+
+  // --- User routes ---
   const isAuthenticated = request.cookies.has("vouch_session");
   const isVerified = request.cookies.get("vouch_status")?.value === "verified";
 

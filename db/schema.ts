@@ -93,6 +93,7 @@ export const users = pgTable("users", {
   // Moderation
   trustScore: integer("trust_score").default(0).notNull(),
   isBanned: boolean("is_banned").default(false).notNull(),
+  warningCount: integer("warning_count").default(0).notNull(),
 
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -131,5 +132,76 @@ export const messages = pgTable("messages", {
     .references(() => users.id)
     .notNull(),
   content: text("content").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const platformMessageTypeEnum = pgEnum("platform_message_type", [
+  "warning",
+  "promotion",
+  "announcement",
+]);
+
+export const platformMessages = pgTable("platform_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  recipientId: uuid("recipient_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  type: platformMessageTypeEnum("type").default("announcement").notNull(),
+  content: text("content").notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const likes = pgTable("likes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  likerId: uuid("liker_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  likedUserId: uuid("liked_user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const reportStatusEnum = pgEnum("report_status", [
+  "pending",
+  "reviewed",
+  "dismissed",
+  "action_taken",
+]);
+
+export const reportReasonEnum = pgEnum("report_reason", [
+  "harassment",
+  "fake_profile",
+  "inappropriate_content",
+  "spam",
+  "other",
+]);
+
+export const reports = pgTable("reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reporterId: uuid("reporter_id")
+    .references(() => users.id)
+    .notNull(),
+  reportedUserId: uuid("reported_user_id")
+    .references(() => users.id)
+    .notNull(),
+  conversationId: uuid("conversation_id").references(() => conversations.id),
+  reason: reportReasonEnum("reason").notNull(),
+  description: text("description"),
+  // Snapshot of the last 20 messages at the time of report
+  messageSnapshot: jsonb("message_snapshot")
+    .$type<
+      Array<{
+        senderId: string;
+        senderName: string;
+        content: string;
+        createdAt: string;
+      }>
+    >()
+    .default([]),
+  status: reportStatusEnum("status").default("pending").notNull(),
+  adminNote: text("admin_note"),
+  reviewedAt: timestamp("reviewed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

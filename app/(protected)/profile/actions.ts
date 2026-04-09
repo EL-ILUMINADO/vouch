@@ -203,6 +203,21 @@ export async function deletePhoto(
   }
 }
 
+export async function toggleHideLevel(
+  hideLevel: boolean,
+): Promise<{ error?: string }> {
+  const userId = await requireSession();
+  try {
+    await db
+      .update(users)
+      .set({ hideLevel, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to update setting." };
+  }
+}
+
 export async function addPhoto(
   base64: string,
 ): Promise<{ error?: string; url?: string }> {
