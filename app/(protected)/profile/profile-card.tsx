@@ -3,12 +3,15 @@
 
 import * as React from "react";
 import { ProfilePhotos } from "./profile-photos";
+import { toggleHideLevel } from "./actions";
 
 interface Props {
   name: string;
+  email: string;
   university: string;
   department: string;
   level: string;
+  hideLevel: boolean;
   verificationStatus: string;
   initialImages: string[];
   initialProfileImage: string | null;
@@ -21,9 +24,11 @@ interface Props {
 
 export function ProfileCard({
   name,
+  email,
   university,
   department,
   level,
+  hideLevel: initialHideLevel,
   verificationStatus,
   initialImages,
   initialProfileImage,
@@ -34,6 +39,17 @@ export function ProfileCard({
   interests = [],
 }: Props) {
   const [profileImage, setProfileImage] = React.useState(initialProfileImage);
+  const [hideLevel, setHideLevel] = React.useState(initialHideLevel);
+  const [hideLevelPending, setHideLevelPending] = React.useState(false);
+
+  async function handleToggleHideLevel() {
+    setHideLevelPending(true);
+    const next = !hideLevel;
+    setHideLevel(next); // optimistic
+    const result = await toggleHideLevel(next);
+    if (result.error) setHideLevel(!next); // revert on error
+    setHideLevelPending(false);
+  }
 
   return (
     <>
@@ -65,6 +81,9 @@ export function ProfileCard({
           </p>
           <p className="text-[10px] font-medium text-muted-foreground/60 mt-1">
             {department} · {level}
+          </p>
+          <p className="text-[11px] font-mono text-muted-foreground/50 mt-1.5 tracking-tight">
+            {email}
           </p>
         </div>
       </div>
@@ -108,6 +127,34 @@ export function ProfileCard({
           )}
         </div>
       )}
+
+      {/* Privacy settings */}
+      <div className="bg-card rounded-3xl border border-border shadow-sm p-4 flex justify-between items-center">
+        <div>
+          <span className="block text-sm font-bold text-foreground">
+            Hide Academic Level
+          </span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+            {hideLevel
+              ? "Level hidden on Discover"
+              : "Level visible on Discover"}
+          </span>
+        </div>
+        <button
+          onClick={handleToggleHideLevel}
+          disabled={hideLevelPending}
+          aria-label="Toggle hide level"
+          className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-60 ${
+            hideLevel ? "bg-rose-500" : "bg-muted"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+              hideLevel ? "translate-x-5" : "translate-x-0"
+            }`}
+          />
+        </button>
+      </div>
 
       {/* Photo management — shares profileImage state via callback */}
       <ProfilePhotos

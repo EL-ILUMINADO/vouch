@@ -5,6 +5,7 @@ import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ChatInterface } from "./chat-interface";
+import { ReportDialog } from "@/components/chat/report-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -51,17 +52,22 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
   return (
     <main className="h-screen flex flex-col bg-background">
       <header className="px-6 py-4 border-b border-border flex items-center gap-4 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold">
+        <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold shrink-0">
           {otherUser.name[0]}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h2 className="text-base font-bold text-foreground tracking-tight">
             {otherUser.name}
           </h2>
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">
+          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider truncate">
             {otherUser.department} • {otherUser.level}
           </p>
         </div>
+        <ReportDialog
+          conversationId={conversationId}
+          reportedUserId={otherUser.id}
+          reportedUserName={otherUser.name}
+        />
       </header>
 
       <ChatInterface

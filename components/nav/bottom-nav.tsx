@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, User, Zap, MessageCircle } from "lucide-react";
+import { Map, User, Zap, MessageCircle, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function BottomNav() {
@@ -11,6 +11,7 @@ export function BottomNav() {
   const navItems = [
     { name: "Radar", href: "/radar", icon: Map },
     { name: "Discover", href: "/discover", icon: Zap },
+    { name: "Likes", href: "/likes", icon: Heart },
     { name: "Chats", href: "/chats", icon: MessageCircle },
     { name: "Profile", href: "/profile", icon: User },
   ];
@@ -28,7 +29,6 @@ export function BottomNav() {
               href={item.href}
               className={cn(
                 "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all",
-                // FIX: Updated text colors for dark mode states
                 isActive
                   ? "text-rose-500 dark:text-rose-400 scale-110"
                   : "text-muted-foreground hover:text-foreground",
