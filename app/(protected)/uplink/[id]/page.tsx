@@ -7,6 +7,8 @@ import { notFound, redirect } from "next/navigation";
 import { ChatInterface } from "./chat-interface";
 import { ReportDialog } from "@/components/chat/report-dialog";
 import { ClosedChatBanner } from "./closed-chat-banner";
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -97,9 +99,16 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
   const isClosed = convo.status === "closed_inactive";
 
   return (
-    <main className="h-screen flex flex-col bg-background">
-      <header className="px-6 py-4 border-b border-border flex items-center gap-4 bg-background/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="w-10 h-10 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold shrink-0">
+    <main className="fixed inset-0 bottom-16 flex flex-col bg-background">
+      <header className="px-4 py-3 border-b border-border flex items-center gap-3 bg-background/80 backdrop-blur-md z-50 shrink-0">
+        <Link
+          href="/chats"
+          className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-muted transition-colors shrink-0"
+          aria-label="Back to chats"
+        >
+          <ChevronLeft className="w-5 h-5 text-foreground" />
+        </Link>
+        <div className="w-9 h-9 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold shrink-0">
           {otherUser.name[0]}
         </div>
         <div className="flex-1 min-w-0">

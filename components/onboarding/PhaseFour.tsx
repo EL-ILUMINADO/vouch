@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { curateBioHeadline } from "@/app/(onboarding)/onboarding/bio/ai-action";
+import { PROMPT_QUESTIONS } from "@/lib/validations/onboarding";
 
 const MAX = 80;
+const PROMPT_MAX = 120;
 
 export function PhaseFour() {
   const {
@@ -22,6 +24,8 @@ export function PhaseFour() {
 
   const passionSignal = watch("passion_signal") || "";
   const misunderstoodTrait = watch("misunderstood_trait") || "";
+  const promptQuestion = watch("prompt_question");
+  const promptAnswer = watch("prompt_answer") || "";
   const bioHeadline = watch("bio_headline") || "";
 
   const handleCurate = async () => {
@@ -107,6 +111,69 @@ export function PhaseFour() {
           <p className="text-red-500 text-xs">
             {String(errors.misunderstood_trait.message || "")}
           </p>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-xl font-black">Pick a prompt</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            This shows on your profile card — make it a conversation starter.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {PROMPT_QUESTIONS.map((q) => (
+            <button
+              key={q}
+              type="button"
+              onClick={() =>
+                setValue("prompt_question", q, { shouldValidate: true })
+              }
+              className={cn(
+                "px-3 py-1.5 rounded-full border text-xs font-medium transition-all active:scale-95 text-left",
+                promptQuestion === q
+                  ? "bg-rose-500 border-rose-500 text-white shadow-sm shadow-rose-200 dark:shadow-none"
+                  : "bg-muted/50 border-border text-muted-foreground hover:bg-muted hover:border-rose-300",
+              )}
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+        {errors.prompt_question && (
+          <p className="text-red-500 text-xs">
+            {String(errors.prompt_question.message || "")}
+          </p>
+        )}
+        {promptQuestion && (
+          <div className="space-y-2 pt-1">
+            <div className="flex justify-between items-end">
+              <p className="text-sm font-bold text-rose-500">
+                {promptQuestion}
+              </p>
+              <span
+                className={cn(
+                  "text-xs font-mono shrink-0 ml-2",
+                  promptAnswer.length > PROMPT_MAX
+                    ? "text-red-500 font-bold"
+                    : "text-muted-foreground",
+                )}
+              >
+                {promptAnswer.length}/{PROMPT_MAX}
+              </span>
+            </div>
+            <input
+              {...register("prompt_answer")}
+              maxLength={PROMPT_MAX}
+              placeholder="Your answer..."
+              className="w-full bg-muted/50 border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-rose-400 placeholder:text-muted-foreground/50"
+            />
+            {errors.prompt_answer && (
+              <p className="text-red-500 text-xs">
+                {String(errors.prompt_answer.message || "")}
+              </p>
+            )}
+          </div>
         )}
       </div>
 

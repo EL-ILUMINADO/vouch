@@ -1,28 +1,39 @@
 "use server";
 
 import { db } from "@/db";
-// 1. FIXED: Imported your tables from your schema
 import { users, conversations } from "@/db/schema";
 import { eq, or, and } from "drizzle-orm";
 import { redirect } from "next/navigation";
-// 2. FIXED: Imported revalidatePath from Next.js cache
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { decrypt } from "@/lib/auth";
 
-export async function useRadarPing(
-  currentUserId: string,
-  targetUserId: string,
-) {
-  // 3. FIXED: Swapped to standard db.select() to avoid DrizzleTypeError
+export async function useRadarPing(targetUserId: string) {
+  // Authenticate via session — never trust a userId passed from the client.
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) throw new Error("Not authenticated.");
+  const session = await decrypt(token);
+  if (!session) throw new Error("Invalid session.");
+
+  const currentUserId = session.userId as string;
+
   const [currentUser] = await db
     .select({
       radarPings: users.radarPings,
       pingsResetAt: users.pingsResetAt,
+      verificationStatus: users.verificationStatus,
     })
     .from(users)
     .where(eq(users.id, currentUserId))
     .limit(1);
 
   if (!currentUser) throw new Error("User not found");
+
+  // Server-side verification gate.
+  if (currentUser.verificationStatus !== "verified") {
+    throw new Error("Your identity must be verified before you can connect.");
+  }
 
   const now = new Date();
   let availablePings = currentUser.radarPings ?? 0;

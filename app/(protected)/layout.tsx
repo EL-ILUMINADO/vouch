@@ -1,4 +1,4 @@
-import { BottomNav } from "@/components/nav/bottom-nav";
+import { BottomNavWrapper } from "@/components/nav/bottom-nav-wrapper";
 import { VerificationBanner } from "@/components/verification/VerificationBanner";
 
 export default function ProtectedLayout({
@@ -10,7 +10,7 @@ export default function ProtectedLayout({
     <div className="relative min-h-dvh bg-background">
       <VerificationBanner />
       <div className="pb-16">{children}</div>
-      <BottomNav />
+      <BottomNavWrapper />
     </div>
   );
 }

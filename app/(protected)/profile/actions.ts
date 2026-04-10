@@ -1,7 +1,13 @@
 "use server";
 
 import { db } from "@/db";
-import { users, conversations, messages, vouchCodes } from "@/db/schema";
+import {
+  users,
+  conversations,
+  messages,
+  vouchCodes,
+  reports,
+} from "@/db/schema";
 import { eq, or, and } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cloudinary } from "@/lib/cloudinary";
@@ -71,7 +77,8 @@ export async function deleteAccount(): Promise<{ error?: string }> {
       .limit(1);
 
     if (!user) {
-      return { error: "Account not found." };
+      clearAuthCookies(cookieStore);
+      redirect("/login");
     }
 
     // 2. Delete Cloudinary assets.
@@ -92,6 +99,13 @@ export async function deleteAccount(): Promise<{ error?: string }> {
     //    Must happen before deleting conversations because messages.senderId
     //    has a FK to users.id with no cascade.
     await db.delete(messages).where(eq(messages.senderId, userId));
+
+    // 4a. Delete reports filed by or against this user (references conversations).
+    await db
+      .delete(reports)
+      .where(
+        or(eq(reports.reporterId, userId), eq(reports.reportedUserId, userId)),
+      );
 
     // 4. Delete conversations the user participated in.
     //    The onDelete: "cascade" on messages.conversationId handles any

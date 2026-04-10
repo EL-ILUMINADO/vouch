@@ -1,11 +1,12 @@
 "use server";
 
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, platformMessages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { cloudinary } from "@/lib/cloudinary";
+import { revalidatePath } from "next/cache";
 
 // ─── Signed upload
 
@@ -83,19 +84,32 @@ export async function submitLiveness(videoUrl: string): Promise<LivenessState> {
 
   try {
     const [user] = await db
-      .select({ id: users.id, verificationStatus: users.verificationStatus })
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        verificationStatus: users.verificationStatus,
+        requiresPulseCheck: users.requiresPulseCheck,
+        verificationVideoUrl: users.verificationVideoUrl,
+      })
       .from(users)
       .where(eq(users.id, session.userId))
       .limit(1);
 
     if (!user) return { error: "Identity not found." };
 
-    if (user.verificationStatus === "verified") {
-      return { error: "Account is already verified." };
-    }
-
     if (user.verificationStatus === "pending_review") {
       return { error: "A review is already in progress. Hang tight." };
+    }
+
+    // Block re-submission only if already fully verified with a prior video
+    // and no periodic re-check has been requested.
+    if (
+      user.verificationStatus === "verified" &&
+      user.verificationVideoUrl &&
+      !user.requiresPulseCheck
+    ) {
+      return { error: "Account is already verified." };
     }
 
     await db
@@ -106,6 +120,32 @@ export async function submitLiveness(videoUrl: string): Promise<LivenessState> {
         updatedAt: new Date(),
       })
       .where(eq(users.id, user.id));
+
+    // Allow the user to access protected routes (radar etc.) while their
+    // liveness tape is under review. The proxy checks this cookie.
+    cookieStore.set("vouch_status", "pending_review", { path: "/" });
+
+    // Notify the admin user (if they have a DB account) so the submission
+    // appears in their inbox alongside the admin panel entry.
+    const adminEmail = process.env.ADMIN_EMAIL;
+    if (adminEmail) {
+      const [adminUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(eq(users.email, adminEmail))
+        .limit(1);
+
+      if (adminUser) {
+        await db.insert(platformMessages).values({
+          recipientId: adminUser.id,
+          type: "announcement",
+          content: `New liveness video submitted by ${user.name ?? "a user"} (${user.email}). Visit the admin panel to review: /admin/verifications`,
+        });
+      }
+    }
+
+    // Bust the admin verifications page cache so the new submission is visible immediately.
+    revalidatePath("/admin/verifications");
 
     return { success: true };
   } catch {

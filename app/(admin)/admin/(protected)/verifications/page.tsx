@@ -3,6 +3,17 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { approveVerification, rejectVerification } from "./actions";
 import { Button } from "@/components/ui/button";
+import {
+  ShieldCheck,
+  Clock,
+  GraduationCap,
+  Mail,
+  Building2,
+  Hash,
+} from "lucide-react";
+
+// Always fetch fresh data — pending submissions must appear immediately.
+export const dynamic = "force-dynamic";
 
 async function getPendingVerifications() {
   return db
@@ -22,85 +33,192 @@ async function getPendingVerifications() {
     .orderBy(users.createdAt);
 }
 
+function timeAgo(date: Date): string {
+  const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  return date.toLocaleDateString("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 export default async function VerificationsPage() {
   const pending = await getPendingVerifications();
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-black text-white">Verifications</h1>
-        <p className="text-sm text-zinc-400 mt-1">
-          {pending.length} user{pending.length !== 1 ? "s" : ""} awaiting review
-        </p>
+      {/* Header */}
+      <div className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-black text-white">Verifications</h1>
+          <p className="text-sm text-zinc-400 mt-1">
+            {pending.length} submission{pending.length !== 1 ? "s" : ""}{" "}
+            awaiting review
+          </p>
+        </div>
+        {pending.length > 0 && (
+          <span className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 rounded-full text-amber-400 text-xs font-bold uppercase tracking-widest">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            {pending.length} pending
+          </span>
+        )}
       </div>
 
       {pending.length === 0 ? (
-        <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-xl p-12 text-center">
+        <div className="bg-zinc-800/40 border border-zinc-700/50 rounded-2xl p-16 text-center space-y-3">
+          <ShieldCheck className="w-10 h-10 text-zinc-600 mx-auto" />
           <p className="text-zinc-400 font-medium">
             All caught up — no pending verifications.
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-6">
           {pending.map((user) => (
             <div
               key={user.id}
-              className="bg-zinc-800/60 border border-zinc-700/50 rounded-xl p-6 space-y-4"
+              className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden"
             >
-              <div className="flex items-start justify-between gap-4">
-                <div className="space-y-0.5">
-                  <p className="text-white font-bold text-lg">{user.name}</p>
-                  <p className="text-zinc-400 text-sm">{user.email}</p>
-                  <p className="text-zinc-500 text-xs">
-                    {user.university} · {user.department} · {user.level}
-                  </p>
-                  <p className="text-zinc-600 text-xs">
-                    Method:{" "}
-                    <span className="text-zinc-400 capitalize">
-                      {user.verificationMethod}
-                    </span>
-                  </p>
+              {/* ── Card header ── */}
+              <div className="px-6 py-4 flex items-center justify-between gap-4 border-b border-zinc-800 bg-zinc-800/30">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-zinc-700 flex items-center justify-center text-white font-black text-lg shrink-0">
+                    {user.name[0]}
+                  </div>
+                  <div>
+                    <p className="text-white font-bold text-base leading-tight">
+                      {user.name}
+                    </p>
+                    <p className="text-zinc-400 text-xs mt-0.5">{user.email}</p>
+                  </div>
                 </div>
-                <p className="text-zinc-600 text-xs shrink-0">
-                  {new Date(user.createdAt).toLocaleDateString("en-NG", {
-                    day: "numeric",
-                    month: "short",
-                    year: "numeric",
-                  })}
-                </p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="flex items-center gap-1 text-zinc-500 text-xs">
+                    <Clock className="w-3 h-3" />
+                    {timeAgo(new Date(user.createdAt))}
+                  </span>
+                  <span className="px-2 py-0.5 bg-zinc-700 rounded-full text-zinc-300 text-[10px] font-bold uppercase tracking-widest">
+                    {user.verificationMethod ?? "liveness"}
+                  </span>
+                </div>
               </div>
 
-              {user.verificationVideoUrl ? (
-                <video
-                  src={user.verificationVideoUrl}
-                  controls
-                  className="w-full max-w-md rounded-lg bg-black border border-zinc-700"
-                  style={{ maxHeight: "280px" }}
-                />
-              ) : (
-                <p className="text-zinc-600 text-sm italic">
-                  No verification video uploaded.
-                </p>
-              )}
+              {/* ── Two-column body ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px]">
+                {/* ── Video panel ── */}
+                <div className="bg-black flex items-center justify-center min-h-[360px]">
+                  {user.verificationVideoUrl ? (
+                    <video
+                      src={user.verificationVideoUrl}
+                      controls
+                      playsInline
+                      preload="metadata"
+                      className="w-full max-h-[520px] object-contain"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 py-16 text-zinc-600">
+                      <ShieldCheck className="w-10 h-10" />
+                      <p className="text-sm">No video submitted.</p>
+                    </div>
+                  )}
+                </div>
 
-              <div className="flex gap-3 pt-1">
-                <form action={approveVerification.bind(null, user.id)}>
-                  <Button
-                    type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-9 px-5"
-                  >
-                    Approve
-                  </Button>
-                </form>
-                <form action={rejectVerification.bind(null, user.id)}>
-                  <Button
-                    type="submit"
-                    variant="outline"
-                    className="border-red-800 text-red-400 hover:bg-red-900/30 hover:text-red-300 font-bold h-9 px-5"
-                  >
-                    Reject
-                  </Button>
-                </form>
+                {/* ── Info + actions panel ── */}
+                <div className="flex flex-col justify-between p-6 border-t lg:border-t-0 lg:border-l border-zinc-800 gap-6">
+                  {/* Identity details */}
+                  <div className="space-y-4">
+                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">
+                      Identity Details
+                    </p>
+
+                    <div className="space-y-3">
+                      <div className="flex items-start gap-2.5">
+                        <GraduationCap className="w-4 h-4 text-zinc-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">
+                            University
+                          </p>
+                          <p className="text-white text-sm font-semibold capitalize">
+                            {user.university}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <Building2 className="w-4 h-4 text-zinc-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">
+                            Department
+                          </p>
+                          <p className="text-white text-sm font-semibold">
+                            {user.department}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <Hash className="w-4 h-4 text-zinc-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">
+                            Level
+                          </p>
+                          <p className="text-white text-sm font-semibold">
+                            {user.level}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-start gap-2.5">
+                        <Mail className="w-4 h-4 text-zinc-500 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-bold">
+                            Email
+                          </p>
+                          <p className="text-white text-sm font-semibold break-all">
+                            {user.email}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-zinc-800" />
+
+                  {/* Action buttons */}
+                  <div className="space-y-2.5">
+                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">
+                      Decision
+                    </p>
+                    <form action={approveVerification.bind(null, user.id)}>
+                      <Button
+                        type="submit"
+                        className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-colors"
+                      >
+                        <ShieldCheck className="w-4 h-4 mr-2" />
+                        Approve Identity
+                      </Button>
+                    </form>
+                    <form action={rejectVerification.bind(null, user.id)}>
+                      <Button
+                        type="submit"
+                        variant="outline"
+                        className="w-full h-11 border-red-900 text-red-400 hover:bg-red-950 hover:text-red-300 font-bold text-sm rounded-xl transition-colors bg-transparent"
+                      >
+                        Reject
+                      </Button>
+                    </form>
+                    <p className="text-zinc-600 text-[10px] text-center leading-relaxed pt-1">
+                      Approval sends the user a verified confirmation message.
+                      <br />
+                      Rejection prompts them to re-submit.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           ))}

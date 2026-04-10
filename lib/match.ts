@@ -40,6 +40,12 @@ export async function recordLikeAndCheckMatch(
 
   if (!theirLike) return { matched: false };
 
+  // Mark their like as consumed so it disappears from the likes page
+  await db
+    .update(likes)
+    .set({ status: "rejected" })
+    .where(eq(likes.id, theirLike.id));
+
   // Mutual match — find any existing conversation between them
   const bothUsers = or(
     and(

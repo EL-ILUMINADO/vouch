@@ -68,20 +68,20 @@ export async function verifyLocation(
       };
     }
 
+    // GPS check confirms the user is physically on campus — store the fix and
+    // method, but do NOT mark them as "verified" yet. Liveness review by the
+    // admin is what grants full verification. The user continues onboarding.
     await db
       .update(users)
       .set({
-        verificationStatus: "verified",
         verificationMethod: "gps",
         latitude: lat,
         longitude: lng,
       })
       .where(eq(users.id, user.id));
-
-    cookieStore.set("vouch_status", "verified", { path: "/" });
   } catch {
     return { error: "Telemetry failure. Retry." };
   }
 
-  redirect("/radar");
+  redirect("/onboarding/photos");
 }

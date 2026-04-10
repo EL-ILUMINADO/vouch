@@ -9,13 +9,13 @@ import { RadarSignal } from "@/types/radar";
 interface RadarDisplayProps {
   signals: RadarSignal[];
   carouselSignals: RadarSignal[];
-  currentUserId: string;
+  isPending?: boolean;
 }
 
 export function RadarDisplay({
   signals,
   carouselSignals,
-  currentUserId,
+  isPending,
 }: RadarDisplayProps) {
   const [selectedSignal, setSelectedSignal] =
     React.useState<RadarSignal | null>(null);
@@ -116,7 +116,7 @@ export function RadarDisplay({
 
       <SignalDetails
         signal={selectedSignal}
-        currentUserId={currentUserId}
+        isPending={isPending}
         onClose={() => setSelectedSignal(null)}
       />
     </div>
