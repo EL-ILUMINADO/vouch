@@ -22,6 +22,7 @@ export function PhaseTwo() {
   const currentEnergy = watch("social_energy");
   const weekendActivity = watch("weekend_activity") || "";
   const happinessTrigger = watch("happiness_trigger") || "";
+  const lifestyleSnapshot = watch("lifestyle_snapshot") || "";
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 fade-in duration-300">
@@ -124,6 +125,38 @@ export function PhaseTwo() {
         {errors.happiness_trigger && (
           <p className="text-red-500 text-xs">
             {String(errors.happiness_trigger.message || "")}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex justify-between items-end">
+          <div>
+            <h2 className="text-lg font-bold">Your lifestyle in a snapshot</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              How do you actually live day to day?
+            </p>
+          </div>
+          <span
+            className={cn(
+              "text-xs font-mono shrink-0 ml-2",
+              lifestyleSnapshot.length > MAX
+                ? "text-red-500 font-bold"
+                : "text-muted-foreground",
+            )}
+          >
+            {lifestyleSnapshot.length}/{MAX}
+          </span>
+        </div>
+        <input
+          {...register("lifestyle_snapshot")}
+          maxLength={MAX}
+          placeholder="e.g., Early mornings, gym, campus, late-night study sessions..."
+          className="w-full bg-muted/50 border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-rose-400 placeholder:text-muted-foreground/50"
+        />
+        {errors.lifestyle_snapshot && (
+          <p className="text-red-500 text-xs">
+            {String(errors.lifestyle_snapshot.message || "")}
           </p>
         )}
       </div>

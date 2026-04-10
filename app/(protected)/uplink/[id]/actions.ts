@@ -16,6 +16,17 @@ export async function sendMessage(conversationId: string, content: string) {
   const session = await decrypt(token);
   if (!session) return { error: "Invalid session." };
 
+  // Server-side verification gate.
+  const [me] = await db
+    .select({ verificationStatus: users.verificationStatus })
+    .from(users)
+    .where(eq(users.id, session.userId as string))
+    .limit(1);
+
+  if (!me || me.verificationStatus !== "verified") {
+    return { error: "Your identity must be verified before you can message." };
+  }
+
   // Reject sends to closed conversations
   const [convo] = await db
     .select({ status: conversations.status })
@@ -68,7 +79,18 @@ export async function reLikeUser(
   const session = await decrypt(token);
   if (!session) return { sent: false };
 
-  await recordLikeAndCheckMatch(session.userId as string, otherUserId);
+  const userId = session.userId as string;
+
+  // Server-side verification gate.
+  const [me] = await db
+    .select({ verificationStatus: users.verificationStatus })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!me || me.verificationStatus !== "verified") return { sent: false };
+
+  await recordLikeAndCheckMatch(userId, otherUserId);
   return { sent: true };
 }
 

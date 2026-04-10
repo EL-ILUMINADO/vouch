@@ -25,6 +25,7 @@ export const verificationMethodEnum = pgEnum("verification_method", [
   "vouch",
   "gps",
   "document",
+  "culture_check",
 ]);
 
 export const users = pgTable("users", {
@@ -55,6 +56,7 @@ export const users = pgTable("users", {
   social_energy: text("social_energy"), // "Introvert", "Extrovert", "Ambivert"
   conflict_style: text("conflict_style"),
   energy_vibe: text("energy_vibe"), // "Spontaneous" vs "Planned"
+  relationship_style: text("relationship_style"), // "Traditional", "Modern/Equal", etc.
 
   // The "Bio Gold" & Deep Dives (Text Fields)
   bio_headline: text("bio_headline"), // Question 20

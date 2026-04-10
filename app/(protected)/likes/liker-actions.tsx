@@ -3,17 +3,26 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Heart, X } from "lucide-react";
+import { toast } from "sonner";
 import { likeBack, rejectLike } from "./actions";
 
 interface LikerActionsProps {
   likerId: string;
+  isPending?: boolean;
 }
 
-export function LikerActions({ likerId }: LikerActionsProps) {
+export function LikerActions({ likerId, isPending }: LikerActionsProps) {
   const router = useRouter();
   const [state, setState] = useState<"idle" | "loading" | "done">("idle");
 
   const handleLikeBack = async () => {
+    if (isPending) {
+      toast.warning("Verification pending", {
+        description:
+          "You'll be able to like back once your identity is cleared (6–24 hrs).",
+      });
+      return;
+    }
     setState("loading");
     const result = await likeBack(likerId);
     if ("conversationId" in result) {

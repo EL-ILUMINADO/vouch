@@ -65,7 +65,7 @@ export function CultureCheckCard({ universityId, universityName }: Props) {
         isOpen={isOpen}
         universityId={universityId}
         universityName={universityName}
-        onSuccess={() => router.push("/radar")}
+        onSuccess={() => router.push("/onboarding/photos")}
         onClose={() => setIsOpen(false)}
       />
     </>

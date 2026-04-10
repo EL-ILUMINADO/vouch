@@ -13,6 +13,7 @@ import {
   CopyButtonClient,
   CodeVisibilityToggle,
 } from "./account-actions";
+import { LivenessTestModal } from "@/components/verification/LivenessTestModal";
 import { ProfileCard } from "./profile-card";
 import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
 
@@ -34,6 +35,7 @@ export default async function ProfilePage() {
       level: users.level,
       hideLevel: users.hideLevel,
       verificationStatus: users.verificationStatus,
+      requiresPulseCheck: users.requiresPulseCheck,
       images: users.images,
       profileImage: users.profileImage,
       // Onboarding fields
@@ -156,6 +158,55 @@ export default async function ProfilePage() {
             </Link>
           </div>
         </section>
+
+        {/* Identity Verification */}
+        {(user.verificationStatus !== "verified" ||
+          user.requiresPulseCheck) && (
+          <section className="space-y-4">
+            <h3 className="text-sm font-black text-foreground uppercase tracking-widest px-2">
+              Identity
+            </h3>
+            {user.verificationStatus === "pending_review" ? (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
+                  <span className="text-amber-500 text-base">⏳</span>
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-foreground">
+                    Under Review
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Your liveness tape is being reviewed. You&apos;ll be
+                    notified once cleared.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-zinc-950 border border-rose-900/40 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-rose-500/10 flex items-center justify-center shrink-0">
+                  <span className="text-rose-400 text-base">🛡</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-white">
+                    {user.verificationStatus === "rejected"
+                      ? "Verification Failed"
+                      : user.requiresPulseCheck
+                        ? "Routine Identity Check"
+                        : "Identity Check Required"}
+                  </p>
+                  <p className="text-xs text-zinc-400 mt-0.5">
+                    {user.verificationStatus === "rejected"
+                      ? "Your clip was rejected. Record a new one to unlock the app."
+                      : user.requiresPulseCheck
+                        ? "A routine liveness check has been requested. Record a quick clip to continue."
+                        : "Complete your liveness check to unlock Handshakes and Chats."}
+                  </p>
+                </div>
+                <LivenessTestModal />
+              </div>
+            )}
+          </section>
+        )}
 
         {/* App Settings */}
         <section className="space-y-4">

@@ -19,6 +19,14 @@ export default async function LikesPage() {
 
   const currentUserId = session.userId as string;
 
+  const [currentUser] = await db
+    .select({ verificationStatus: users.verificationStatus })
+    .from(users)
+    .where(eq(users.id, currentUserId))
+    .limit(1);
+
+  const isPending = currentUser?.verificationStatus === "pending_review";
+
   // Only show pending likes (not ones the user has already rejected)
   const likerRows = await db
     .select({
@@ -70,7 +78,7 @@ export default async function LikesPage() {
           {/* Visible likers */}
           <div className="grid grid-cols-2 gap-3">
             {visible.map(({ liker }) => (
-              <LikerCard key={liker.id} liker={liker} />
+              <LikerCard key={liker.id} liker={liker} isPending={isPending} />
             ))}
 
             {/* Locked / blurred cards */}
@@ -116,6 +124,7 @@ export default async function LikesPage() {
 
 function LikerCard({
   liker,
+  isPending,
 }: {
   liker: {
     id: string;
@@ -128,6 +137,7 @@ function LikerCard({
     bio_headline: string | null;
     verificationStatus: string;
   };
+  isPending: boolean;
 }) {
   const imgSrc = liker.profileImage ?? liker.images?.[0] ?? null;
 
@@ -166,7 +176,7 @@ function LikerCard({
           </p>
         )}
         {/* Action buttons rendered client-side */}
-        <LikerActions likerId={liker.id} />
+        <LikerActions likerId={liker.id} isPending={isPending} />
       </div>
     </div>
   );

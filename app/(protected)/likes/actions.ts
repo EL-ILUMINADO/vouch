@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { likes } from "@/db/schema";
+import { likes, users } from "@/db/schema";
 import { and, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
@@ -20,6 +20,17 @@ export async function likeBack(
   if (!session) return { error: "Not authenticated" };
 
   const currentUserId = session.userId as string;
+
+  // Server-side verification gate — block unverified users regardless of client state.
+  const [me] = await db
+    .select({ verificationStatus: users.verificationStatus })
+    .from(users)
+    .where(eq(users.id, currentUserId))
+    .limit(1);
+
+  if (!me || me.verificationStatus !== "verified") {
+    return { error: "Your identity must be verified before you can connect." };
+  }
 
   const result = await recordLikeAndCheckMatch(currentUserId, likerId);
 

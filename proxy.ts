@@ -5,6 +5,7 @@ import { verifyAdminSession } from "@/lib/admin-auth";
 const PUBLIC_ROUTES = [
   "/",
   "/login",
+  "/codes",
   "/onboarding/vouch",
   "/onboarding/verify",
 ];
@@ -30,10 +31,15 @@ export async function proxy(request: NextRequest) {
 
   // --- User routes ---
   const isAuthenticated = request.cookies.has("vouch_session");
-  const isVerified = request.cookies.get("vouch_status")?.value === "verified";
+  const vouchStatus = request.cookies.get("vouch_status")?.value;
+
+  // "verified"       → admin-approved, full access
+  // "pending_review" → liveness submitted, awaiting review, can browse radar
+  const hasCompletedOnboarding =
+    vouchStatus === "verified" || vouchStatus === "pending_review";
 
   if (PUBLIC_ROUTES.includes(pathname)) {
-    if (isAuthenticated && isVerified && pathname === "/") {
+    if (isAuthenticated && hasCompletedOnboarding && pathname === "/") {
       return NextResponse.redirect(new URL("/radar", request.url));
     }
     return NextResponse.next();
@@ -43,7 +49,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (!isVerified && !pathname.startsWith("/onboarding")) {
+  if (!hasCompletedOnboarding && !pathname.startsWith("/onboarding")) {
     return NextResponse.redirect(new URL("/onboarding/verify", request.url));
   }
 

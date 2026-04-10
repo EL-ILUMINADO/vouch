@@ -22,6 +22,7 @@ export function PhaseThree() {
   const currentConflict = watch("conflict_style");
   const dealBreakers = watch("deal_breakers") || "";
   const growthFocus = watch("growth_focus") || "";
+  const relationshipVision = watch("relationship_vision") || "";
 
   return (
     <div className="space-y-8 animate-in slide-in-from-right-4 fade-in duration-300">
@@ -122,6 +123,38 @@ export function PhaseThree() {
         {errors.growth_focus && (
           <p className="text-red-500 text-xs">
             {String(errors.growth_focus.message || "")}
+          </p>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        <div className="flex justify-between items-end">
+          <div>
+            <h2 className="text-lg font-bold">Your relationship vision</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              What does a healthy relationship look like to you?
+            </p>
+          </div>
+          <span
+            className={cn(
+              "text-xs font-mono shrink-0 ml-2",
+              relationshipVision.length > MAX
+                ? "text-red-500 font-bold"
+                : "text-muted-foreground",
+            )}
+          >
+            {relationshipVision.length}/{MAX}
+          </span>
+        </div>
+        <textarea
+          {...register("relationship_vision")}
+          maxLength={MAX}
+          placeholder="e.g., Two people who push each other to grow while actually enjoying each other..."
+          className="w-full bg-muted/50 border border-border rounded-xl p-3 text-sm focus:outline-none focus:ring-1 focus:ring-rose-400 min-h-[80px] resize-none placeholder:text-muted-foreground/50"
+        />
+        {errors.relationship_vision && (
+          <p className="text-red-500 text-xs">
+            {String(errors.relationship_vision.message || "")}
           </p>
         )}
       </div>

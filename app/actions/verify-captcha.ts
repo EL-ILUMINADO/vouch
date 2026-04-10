@@ -54,17 +54,17 @@ export async function verifyCaptcha(
     }
 
     if (passed) {
+      // Culture check confirms campus knowledge — record the method but do NOT
+      // mark the user as "verified". Liveness video + admin review does that.
+      // The user continues onboarding: photos → interests → bio → liveness.
       await db
         .update(users)
         .set({
-          verificationStatus: "verified",
-          verificationMethod: "gps", // reuse nearest intent — "culture check"
+          verificationMethod: "culture_check",
           captchaLockedUntil: null,
           updatedAt: new Date(),
         })
         .where(eq(users.id, user.id));
-
-      cookieStore.set("vouch_status", "verified", { path: "/" });
 
       return { success: true };
     } else {

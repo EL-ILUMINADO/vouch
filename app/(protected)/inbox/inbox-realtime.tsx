@@ -50,7 +50,7 @@ function MessageBubble({ msg }: { msg: PlatformMessage }) {
           </span>
         </div>
         <div
-          className={`px-4 py-3 rounded-2xl rounded-tl-none text-sm whitespace-pre-line shadow-sm ${cfg.bubble}`}
+          className={`px-4 py-3 rounded-2xl rounded-tl-none text-sm whitespace-pre-line wrap-break-word shadow-sm ${cfg.bubble}`}
         >
           {msg.content}
         </div>

@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { BatteryCharging, Zap } from "lucide-react";
 import { RadarDisplay } from "./radar-display";
+import { RadarGate } from "@/components/radar/RadarGate";
 import {
   SUPPORTED_UNIVERSITIES,
   RADAR_MIN_KM,
@@ -29,14 +30,38 @@ export default async function RadarPage() {
     .where(eq(users.id, session.userId))
     .limit(1);
 
-  if (!currentUser || currentUser.verificationStatus !== "verified") {
-    redirect("/onboarding/verify");
-  }
+  if (!currentUser) redirect("/login");
+
+  // pending_review users can browse the radar but cannot connect or like
+  const isPending = currentUser.verificationStatus === "pending_review";
+
+  const isGated =
+    (!isPending && currentUser.verificationStatus !== "verified") ||
+    currentUser.requiresPulseCheck;
 
   const now = new Date();
   const pings = currentUser.radarPings ?? 10;
   const resetAt = currentUser.pingsResetAt;
   const hasPings = pings > 0 || (resetAt !== null && now > resetAt);
+
+  // Gate unverified / rejected / pulse-check-required users
+  if (isGated) {
+    const gateStatus = currentUser.requiresPulseCheck
+      ? "unverified"
+      : (currentUser.verificationStatus as
+          | "unverified"
+          | "pending_review"
+          | "rejected");
+
+    return (
+      <main className="w-full h-[calc(100dvh-4rem)] overflow-hidden bg-background relative">
+        <RadarGate verificationStatus={gateStatus}>
+          {/* Empty placeholder — visible only as a blurred bg behind the gate */}
+          <div className="w-full h-full" />
+        </RadarGate>
+      </main>
+    );
+  }
 
   if (!hasPings) {
     return (
@@ -119,7 +144,7 @@ export default async function RadarPage() {
       <RadarDisplay
         signals={signals}
         carouselSignals={carouselSignals}
-        currentUserId={currentUser.id}
+        isPending={isPending}
       />
     </main>
   );

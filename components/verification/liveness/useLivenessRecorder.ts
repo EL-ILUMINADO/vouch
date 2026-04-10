@@ -380,8 +380,7 @@ export function useLivenessRecorder(): LivenessRecorder {
     }
 
     setPhase("submitted");
-    setTimeout(() => closeModal(), 2500);
-  }, [recordedBlob, closeModal]);
+  }, [recordedBlob]);
 
   // ── Return ─────────────────────────────────────────────────────────────────
 

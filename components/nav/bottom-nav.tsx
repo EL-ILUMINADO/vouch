@@ -5,22 +5,51 @@ import { usePathname } from "next/navigation";
 import { Map, User, Zap, MessageCircle, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function BottomNav() {
+interface BottomNavProps {
+  likesCount?: number;
+  chatsCount?: number;
+  profileAlert?: boolean;
+}
+
+export function BottomNav({
+  likesCount = 0,
+  chatsCount = 0,
+  profileAlert = false,
+}: BottomNavProps) {
   const pathname = usePathname();
 
   const navItems = [
-    { name: "Radar", href: "/radar", icon: Map },
-    { name: "Discover", href: "/discover", icon: Zap },
-    { name: "Likes", href: "/likes", icon: Heart },
-    { name: "Chats", href: "/chats", icon: MessageCircle },
-    { name: "Profile", href: "/profile", icon: User },
+    { name: "Radar", href: "/radar", icon: Map, badge: 0, dot: false },
+    { name: "Discover", href: "/discover", icon: Zap, badge: 0, dot: false },
+    {
+      name: "Likes",
+      href: "/likes",
+      icon: Heart,
+      badge: likesCount,
+      dot: false,
+    },
+    {
+      name: "Chats",
+      href: "/chats",
+      icon: MessageCircle,
+      badge: chatsCount,
+      dot: false,
+    },
+    {
+      name: "Profile",
+      href: "/profile",
+      icon: User,
+      badge: 0,
+      dot: profileAlert,
+    },
   ];
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border pb-safe">
       <div className="max-w-md mx-auto flex justify-around items-center h-16">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
 
           return (
@@ -28,18 +57,30 @@ export function BottomNav() {
               key={item.href}
               href={item.href}
               className={cn(
-                "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all",
+                "relative flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all",
                 isActive
                   ? "text-rose-500 dark:text-rose-400 scale-110"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
-              <Icon
-                className={cn(
-                  "w-5 h-5",
-                  isActive && "fill-rose-500/10 dark:fill-rose-400/10",
+              <div className="relative">
+                <Icon
+                  className={cn(
+                    "w-5 h-5",
+                    isActive && "fill-rose-500/10 dark:fill-rose-400/10",
+                  )}
+                />
+                {/* Numeric badge */}
+                {item.badge > 0 && (
+                  <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center leading-none">
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
                 )}
-              />
+                {/* Dot indicator (no number) */}
+                {item.dot && item.badge === 0 && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-background" />
+                )}
+              </div>
               <span className="text-[10px] font-bold uppercase tracking-widest">
                 {item.name}
               </span>

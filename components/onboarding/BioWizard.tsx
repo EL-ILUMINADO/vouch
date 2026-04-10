@@ -43,17 +43,23 @@ export function BioWizard() {
     resolver: zodResolver(completeOnboardingSchema as any),
     mode: "onChange",
     defaultValues: {
+      gender: undefined,
+      looking_for: undefined,
       intent: undefined,
       relationship_style: undefined,
       energy_vibe: undefined,
       social_energy: undefined,
       weekend_activity: "",
       happiness_trigger: "",
+      lifestyle_snapshot: "",
       conflict_style: undefined,
       deal_breakers: "",
       growth_focus: "",
+      relationship_vision: "",
       passion_signal: "",
       misunderstood_trait: "",
+      prompt_question: undefined,
+      prompt_answer: "",
       bio_headline: "",
     },
   });
@@ -63,19 +69,33 @@ export function BioWizard() {
     let fieldsToValidate: (keyof BioFormData)[] = [];
 
     if (currentPhase === 1) {
-      fieldsToValidate = ["intent", "relationship_style", "energy_vibe"];
+      fieldsToValidate = [
+        "gender",
+        "looking_for",
+        "intent",
+        "relationship_style",
+        "energy_vibe",
+      ];
     } else if (currentPhase === 2) {
       fieldsToValidate = [
         "social_energy",
         "weekend_activity",
         "happiness_trigger",
+        "lifestyle_snapshot",
       ];
     } else if (currentPhase === 3) {
-      fieldsToValidate = ["conflict_style", "deal_breakers", "growth_focus"];
+      fieldsToValidate = [
+        "conflict_style",
+        "deal_breakers",
+        "growth_focus",
+        "relationship_vision",
+      ];
     } else if (currentPhase === 4) {
       fieldsToValidate = [
         "passion_signal",
         "misunderstood_trait",
+        "prompt_question",
+        "prompt_answer",
         "bio_headline",
       ];
     }

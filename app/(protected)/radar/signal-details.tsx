@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { X, MessageCircle, ShieldCheck, Loader2 } from "lucide-react";
+import { X, MessageCircle, ShieldCheck, Loader2, Clock } from "lucide-react";
+import { toast } from "sonner";
 import { useRadarPing as radarPing } from "./actions";
 
 interface SignalDetailsProps {
@@ -13,22 +14,29 @@ interface SignalDetailsProps {
     distance: number;
   } | null;
   onClose: () => void;
-  currentUserId: string;
+  isPending?: boolean;
 }
 
 export function SignalDetails({
   signal,
   onClose,
-  currentUserId,
+  isPending,
 }: SignalDetailsProps) {
   const [isPinging, setIsPinging] = React.useState(false);
 
   if (!signal) return null;
 
   const handlePing = async () => {
+    if (isPending) {
+      toast.warning("Verification pending", {
+        description:
+          "Your identity tape is under review (6–24 hrs). You'll be able to connect once cleared.",
+      });
+      return;
+    }
     try {
       setIsPinging(true);
-      await radarPing(currentUserId, signal.id);
+      await radarPing(signal.id);
     } catch (error) {
       console.error(error);
       setIsPinging(false);
@@ -88,10 +96,19 @@ export function SignalDetails({
           <button
             onClick={handlePing}
             disabled={isPinging}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-200 dark:shadow-none transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100"
+            className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 ${
+              isPending
+                ? "bg-muted text-muted-foreground border border-border"
+                : "text-white bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-200 dark:shadow-none"
+            }`}
           >
             {isPinging ? (
               <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isPending ? (
+              <>
+                <Clock className="w-4 h-4" />
+                Verification Pending
+              </>
             ) : (
               <>
                 <MessageCircle className="w-4 h-4 fill-white/20" />
