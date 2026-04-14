@@ -336,3 +336,117 @@ export async function addPhoto(
     return { error: "Failed to upload photo. Please try again." };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Vibe fields (intent, social_energy, energy_vibe, relationship_style,
+//              conflict_style)
+// ---------------------------------------------------------------------------
+
+export async function updateVibeFields(fields: {
+  intent: string | null;
+  socialEnergy: string | null;
+  energyVibe: string | null;
+  relationshipStyle: string | null;
+  conflictStyle: string | null;
+}): Promise<{ error?: string }> {
+  const userId = await requireSession();
+  try {
+    await db
+      .update(users)
+      .set({
+        intent: fields.intent,
+        social_energy: fields.socialEnergy,
+        energy_vibe: fields.energyVibe,
+        relationship_style: fields.relationshipStyle,
+        conflict_style: fields.conflictStyle,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to update. Please try again." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Deep dive text fields (lifestyle_snapshot, deal_breakers,
+//                        relationship_vision)
+// ---------------------------------------------------------------------------
+
+export async function updateDeepDives(fields: {
+  lifestyleSnapshot: string | null;
+  dealBreakers: string | null;
+  relationshipVision: string | null;
+}): Promise<{ error?: string }> {
+  const userId = await requireSession();
+  try {
+    await db
+      .update(users)
+      .set({
+        lifestyle_snapshot: fields.lifestyleSnapshot,
+        deal_breakers: fields.dealBreakers,
+        relationship_vision: fields.relationshipVision,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to update. Please try again." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Prompt (prompt_question + prompt_answer)
+// ---------------------------------------------------------------------------
+
+export async function updatePrompt(fields: {
+  promptQuestion: string | null;
+  promptAnswer: string | null;
+}): Promise<{ error?: string }> {
+  const userId = await requireSession();
+
+  if (fields.promptAnswer && fields.promptAnswer.trim().length > 120)
+    return { error: "Answer must be 120 characters or less." };
+
+  try {
+    await db
+      .update(users)
+      .set({
+        prompt_question: fields.promptQuestion,
+        prompt_answer: fields.promptAnswer?.trim() || null,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to update prompt. Please try again." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding JSONB answers (passion_signal, misunderstood_trait, etc.)
+// ---------------------------------------------------------------------------
+
+export async function updateOnboardingAnswers(
+  updates: Record<string, string | null>,
+): Promise<{ error?: string }> {
+  const userId = await requireSession();
+  try {
+    const [user] = await db
+      .select({ answers: users.onboarding_answers })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    const current = (user?.answers as Record<string, unknown>) ?? {};
+    const merged = { ...current, ...updates };
+
+    await db
+      .update(users)
+      .set({ onboarding_answers: merged, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to update. Please try again." };
+  }
+}

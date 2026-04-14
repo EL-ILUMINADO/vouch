@@ -40,12 +40,28 @@ export default async function ProfilePage() {
       requiresPulseCheck: users.requiresPulseCheck,
       images: users.images,
       profileImage: users.profileImage,
-      // Onboarding fields
-      bioHeadline: users.bio_headline,
+      // Onboarding fields — phase 1
+      gender: users.gender,
+      lookingFor: users.lookingFor,
       intent: users.intent,
-      socialEnergy: users.social_energy,
+      relationshipStyle: users.relationship_style,
       energyVibe: users.energy_vibe,
+      // Onboarding fields — phase 2
+      socialEnergy: users.social_energy,
+      // Onboarding fields — phase 3
+      conflictStyle: users.conflict_style,
+      dealBreakers: users.deal_breakers,
+      // Onboarding fields — text
+      lifestyleSnapshot: users.lifestyle_snapshot,
+      relationshipVision: users.relationship_vision,
+      // Onboarding fields — phase 4
+      promptQuestion: users.prompt_question,
+      promptAnswer: users.prompt_answer,
+      // Bio & interests
+      bioHeadline: users.bio_headline,
       interests: users.interests,
+      // JSONB catch-all for remaining answers
+      onboardingAnswers: users.onboarding_answers,
     })
     .from(users)
     .where(eq(users.id, session.userId))
@@ -86,6 +102,35 @@ export default async function ProfilePage() {
           socialEnergy={user.socialEnergy}
           energyVibe={user.energyVibe}
           interests={user.interests ?? []}
+          gender={user.gender}
+          lookingFor={user.lookingFor}
+          relationshipStyle={user.relationshipStyle}
+          conflictStyle={user.conflictStyle}
+          lifestyleSnapshot={user.lifestyleSnapshot}
+          dealBreakers={user.dealBreakers}
+          relationshipVision={user.relationshipVision}
+          promptQuestion={user.promptQuestion}
+          promptAnswer={user.promptAnswer}
+          passionSignal={
+            (user.onboardingAnswers as Record<string, string> | null)
+              ?.passion_signal ?? null
+          }
+          misunderstoodTrait={
+            (user.onboardingAnswers as Record<string, string> | null)
+              ?.misunderstood_trait ?? null
+          }
+          growthFocus={
+            (user.onboardingAnswers as Record<string, string> | null)
+              ?.growth_focus ?? null
+          }
+          weekendActivity={
+            (user.onboardingAnswers as Record<string, string> | null)
+              ?.weekend_activity ?? null
+          }
+          happinessTrigger={
+            (user.onboardingAnswers as Record<string, string> | null)
+              ?.happiness_trigger ?? null
+          }
         />
 
         {/* Vouch Code Management */}

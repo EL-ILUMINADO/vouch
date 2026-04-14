@@ -1,8 +1,7 @@
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
-import { approveVerification, rejectVerification } from "./actions";
-import { Button } from "@/components/ui/button";
+import { VerificationActionButtons } from "./verification-actions-client";
 import {
   ShieldCheck,
   Clock,
@@ -190,34 +189,10 @@ export default async function VerificationsPage() {
                   <div className="border-t border-zinc-800" />
 
                   {/* Action buttons */}
-                  <div className="space-y-2.5">
-                    <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">
-                      Decision
-                    </p>
-                    <form action={approveVerification.bind(null, user.id)}>
-                      <Button
-                        type="submit"
-                        className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm rounded-xl transition-colors"
-                      >
-                        <ShieldCheck className="w-4 h-4 mr-2" />
-                        Approve Identity
-                      </Button>
-                    </form>
-                    <form action={rejectVerification.bind(null, user.id)}>
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        className="w-full h-11 border-red-900 text-red-400 hover:bg-red-950 hover:text-red-300 font-bold text-sm rounded-xl transition-colors bg-transparent"
-                      >
-                        Reject
-                      </Button>
-                    </form>
-                    <p className="text-zinc-600 text-[10px] text-center leading-relaxed pt-1">
-                      Approval sends the user a verified confirmation message.
-                      <br />
-                      Rejection prompts them to re-submit.
-                    </p>
-                  </div>
+                  <VerificationActionButtons
+                    userId={user.id}
+                    userName={user.name}
+                  />
                 </div>
               </div>
             </div>
