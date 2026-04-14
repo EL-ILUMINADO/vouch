@@ -8,18 +8,26 @@ import { cn } from "@/lib/utils";
 interface BottomNavProps {
   likesCount?: number;
   chatsCount?: number;
+  radarRequestCount?: number;
   profileAlert?: boolean;
 }
 
 export function BottomNav({
   likesCount = 0,
   chatsCount = 0,
+  radarRequestCount = 0,
   profileAlert = false,
 }: BottomNavProps) {
   const pathname = usePathname();
 
   const navItems = [
-    { name: "Radar", href: "/radar", icon: Map, badge: 0, dot: false },
+    {
+      name: "Radar",
+      href: "/radar",
+      icon: Map,
+      badge: radarRequestCount,
+      dot: false,
+    },
     { name: "Discover", href: "/discover", icon: Zap, badge: 0, dot: false },
     {
       name: "Likes",

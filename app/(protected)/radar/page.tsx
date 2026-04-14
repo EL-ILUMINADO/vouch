@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { users } from "@/db/schema";
-import { eq, and, ne, sql } from "drizzle-orm";
+import { users, conversations, radarRequests } from "@/db/schema";
+import { eq, and, ne, or, sql, inArray, isNull } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -14,7 +14,7 @@ import {
   RADAR_MAX_KM,
   RADAR_MAX_SIGNALS,
 } from "@/lib/constants/universities";
-import type { RadarSignal } from "@/types/radar";
+import type { RadarSignal, RadarRequestState } from "@/types/radar";
 
 export default async function RadarPage() {
   const cookieStore = await cookies();
@@ -42,9 +42,14 @@ export default async function RadarPage() {
   const now = new Date();
   const pings = currentUser.radarPings ?? 10;
   const resetAt = currentUser.pingsResetAt;
-  const hasPings = pings > 0 || (resetAt !== null && now > resetAt);
 
-  // Gate unverified / rejected / pulse-check-required users
+  // Effective remaining pings — if the weekly window has passed, show the
+  // refreshed value even before the DB is updated (that happens on next use).
+  const effectiveRemainingPings =
+    resetAt !== null && now > resetAt && pings === 0 ? 10 : pings;
+
+  const hasPings = effectiveRemainingPings > 0;
+
   if (isGated) {
     const gateStatus = currentUser.requiresPulseCheck
       ? "unverified"
@@ -56,7 +61,6 @@ export default async function RadarPage() {
     return (
       <main className="w-full h-[calc(100dvh-4rem)] overflow-hidden bg-background relative">
         <RadarGate verificationStatus={gateStatus}>
-          {/* Empty placeholder — visible only as a blurred bg behind the gate */}
           <div className="w-full h-full" />
         </RadarGate>
       </main>
@@ -87,17 +91,13 @@ export default async function RadarPage() {
     );
   }
 
-  // Reference point for distance calculation:
-  // 1. Use the user's stored GPS coordinates if available (GPS-verified users).
-  // 2. Fall back to the university centre for users verified via vouch/document.
   const uniConfig = SUPPORTED_UNIVERSITIES.find(
     (u) => u.id === currentUser.university,
   );
   const refLat = currentUser.latitude ?? uniConfig?.coordinates.lat ?? 0;
   const refLng = currentUser.longitude ?? uniConfig?.coordinates.lng ?? 0;
 
-  // Pythagorean approximation — accurate to < 0.1% error within 1.5km.
-  // (refLat / 57.2958) converts degrees to radians for the longitude correction.
+  // Pythagorean approximation — accurate to <0.1% within 1.5km.
   const distanceSql = sql<number>`
     sqrt(
       pow(111.0 * (${users.latitude} - ${refLat}), 2) +
@@ -105,9 +105,6 @@ export default async function RadarPage() {
     )
   `;
 
-  // Fetch verified peers in the same university whose GPS-stored positions
-  // fall within the radar ring (RADAR_MIN_KM to RADAR_MAX_KM) of the current user.
-  // Users without stored coordinates are excluded — they cannot be accurately placed.
   const rawSignals = await db
     .select({
       id: users.id,
@@ -122,7 +119,14 @@ export default async function RadarPage() {
       and(
         eq(users.university, currentUser.university),
         eq(users.verificationStatus, "verified"),
+        eq(users.isRadarVisible, true),
         ne(users.id, currentUser.id),
+        // Exclude users who have explicitly declared "Short-term" intent.
+        // Radar dots carry no intent label, so recipients can't give informed
+        // consent to who's pinging them. Short-term seekers can still connect
+        // via Discover where their intent is visible on the card.
+        // Users with intent = null (not yet set) are still shown.
+        or(ne(users.intent, "Short-term"), isNull(users.intent)),
         sql`${users.latitude} IS NOT NULL`,
         sql`${users.longitude} IS NOT NULL`,
         sql`${distanceSql} >= ${RADAR_MIN_KM}`,
@@ -132,9 +136,81 @@ export default async function RadarPage() {
     .limit(RADAR_MAX_SIGNALS);
 
   const signals = rawSignals as RadarSignal[];
+  const signalIds = signals.map((s) => s.id);
 
-  // Server-side shuffle so carousel order varies per page load without
-  // causing hydration mismatches (stable HTML sent to client).
+  // Build the request-state map for every signal in range.
+  const requestStates: Record<string, RadarRequestState> = {};
+
+  if (signalIds.length > 0) {
+    const [sentRequests, receivedRequests, existingConversations] =
+      await Promise.all([
+        // Requests I've sent to people currently on radar.
+        db
+          .select({ receiverId: radarRequests.receiverId })
+          .from(radarRequests)
+          .where(
+            and(
+              eq(radarRequests.senderId, currentUser.id),
+              eq(radarRequests.status, "pending"),
+              inArray(radarRequests.receiverId, signalIds),
+            ),
+          ),
+
+        // Requests sent to me from people currently on radar.
+        db
+          .select({
+            id: radarRequests.id,
+            senderId: radarRequests.senderId,
+          })
+          .from(radarRequests)
+          .where(
+            and(
+              eq(radarRequests.receiverId, currentUser.id),
+              eq(radarRequests.status, "pending"),
+              inArray(radarRequests.senderId, signalIds),
+            ),
+          ),
+
+        // Active conversations I already have with people on radar.
+        db
+          .select({
+            id: conversations.id,
+            userOneId: conversations.userOneId,
+            userTwoId: conversations.userTwoId,
+          })
+          .from(conversations)
+          .where(
+            and(
+              or(
+                and(
+                  eq(conversations.userOneId, currentUser.id),
+                  inArray(conversations.userTwoId, signalIds),
+                ),
+                and(
+                  inArray(conversations.userOneId, signalIds),
+                  eq(conversations.userTwoId, currentUser.id),
+                ),
+              ),
+              ne(conversations.status, "closed_inactive"),
+            ),
+          ),
+      ]);
+
+    // Populate the map — "connected" wins over "sent"/"received".
+    for (const r of sentRequests) {
+      requestStates[r.receiverId] = { type: "sent" };
+    }
+    for (const r of receivedRequests) {
+      requestStates[r.senderId] = { type: "received", requestId: r.id };
+    }
+    for (const c of existingConversations) {
+      const otherId =
+        c.userOneId === currentUser.id ? c.userTwoId : c.userOneId;
+      requestStates[otherId] = { type: "connected", conversationId: c.id };
+    }
+  }
+
+  // Server-side shuffle for carousel variety without hydration mismatches.
   const carouselSignals = [...signals]
     .sort(() => Math.random() - 0.5)
     .slice(0, 10);
@@ -145,6 +221,8 @@ export default async function RadarPage() {
         signals={signals}
         carouselSignals={carouselSignals}
         isPending={isPending}
+        remainingPings={effectiveRemainingPings}
+        requestStates={requestStates}
       />
     </main>
   );

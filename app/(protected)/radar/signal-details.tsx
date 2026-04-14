@@ -1,9 +1,20 @@
 "use client";
 
 import * as React from "react";
-import { X, MessageCircle, ShieldCheck, Loader2, Clock } from "lucide-react";
+import {
+  X,
+  MessageCircle,
+  ShieldCheck,
+  Loader2,
+  Clock,
+  Check,
+  Radio,
+} from "lucide-react";
 import { toast } from "sonner";
-import { useRadarPing as radarPing } from "./actions";
+import { useRouter } from "next/navigation";
+import { sendRadarPing, respondToRadarRequest } from "./actions";
+import { ReportDialog } from "@/components/chat/report-dialog";
+import type { RadarRequestState } from "@/types/radar";
 
 interface SignalDetailsProps {
   signal: {
@@ -11,53 +22,106 @@ interface SignalDetailsProps {
     name: string;
     department: string;
     level: string;
+    hideLevel: boolean | null;
     distance: number;
   } | null;
   onClose: () => void;
   isPending?: boolean;
+  requestState: RadarRequestState;
+  onRequestSent: (signalId: string) => void;
 }
 
 export function SignalDetails({
   signal,
   onClose,
   isPending,
+  requestState,
+  onRequestSent,
 }: SignalDetailsProps) {
-  const [isPinging, setIsPinging] = React.useState(false);
+  const router = useRouter();
+  const [isBusy, setIsBusy] = React.useState(false);
+
+  // Reset busy state when a different signal is shown.
+  React.useEffect(() => {
+    setIsBusy(false);
+  }, [signal?.id]);
 
   if (!signal) return null;
 
-  const handlePing = async () => {
+  const handleSendPing = async () => {
     if (isPending) {
       toast.warning("Verification pending", {
         description:
-          "Your identity tape is under review (6–24 hrs). You'll be able to connect once cleared.",
+          "Your identity is under review (6–24 hrs). You'll be able to connect once cleared.",
       });
       return;
     }
     try {
-      setIsPinging(true);
-      await radarPing(signal.id);
-    } catch (error) {
-      console.error(error);
-      setIsPinging(false);
+      setIsBusy(true);
+      await sendRadarPing(signal.id);
+      // If we reach here, a pending request was created (no mutual match).
+      onRequestSent(signal.id);
+      toast.success("Request sent", {
+        description: `${signal.name} will be notified. You have 24 hours to connect.`,
+      });
+      onClose();
+    } catch (err) {
+      // NEXT_REDIRECT throws — let Next.js handle navigation silently.
+      const msg = err instanceof Error ? err.message : "";
+      if (!msg.includes("NEXT_REDIRECT")) {
+        toast.error(msg || "Something went wrong. Try again.");
+      }
+      setIsBusy(false);
     }
   };
 
+  const handleRespond = async (action: "accepted" | "declined") => {
+    if (requestState.type !== "received") return;
+    try {
+      setIsBusy(true);
+      await respondToRadarRequest(requestState.requestId, action);
+      // accepted → redirect handled server-side; declined → close modal.
+      if (action === "declined") {
+        toast.info("Request declined.");
+        onClose();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      if (!msg.includes("NEXT_REDIRECT")) {
+        toast.error(msg || "Something went wrong.");
+      }
+      setIsBusy(false);
+    }
+  };
+
+  const handleOpenChat = () => {
+    if (requestState.type !== "connected") return;
+    router.push(`/uplink/${requestState.conversationId}`);
+  };
+
+  const levelLabel = signal.hideLevel ? null : signal.level || "100L";
+
   return (
     <div className="fixed inset-0 z-100 flex items-center justify-center p-4 bg-foreground/20 backdrop-blur-sm animate-in fade-in duration-200">
-      {/* The Modal Card */}
       <div className="w-full max-w-[320px] bg-card rounded-[2rem] shadow-2xl border border-border overflow-hidden animate-in zoom-in-95 duration-200">
         {/* Top Banner & Avatar */}
         <div className="relative h-24 bg-rose-50 dark:bg-rose-900/20 flex justify-center">
+          {/* Report — top-left */}
+          <div className="absolute top-4 left-4">
+            <ReportDialog
+              reportedUserId={signal.id}
+              reportedUserName={signal.name}
+            />
+          </div>
+          {/* Close — top-right */}
           <button
             onClick={onClose}
-            disabled={isPinging}
+            disabled={isBusy}
             className="absolute top-4 right-4 p-2 bg-card/60 hover:bg-card rounded-full backdrop-blur-md transition-colors disabled:opacity-50"
           >
             <X className="w-4 h-4 text-muted-foreground" />
           </button>
 
-          {/* Avatar Bubble overlapping the banner */}
           <div className="absolute -bottom-10 w-20 h-20 bg-card rounded-full p-1.5">
             <div className="w-full h-full bg-linear-to-br from-rose-400 to-pink-500 rounded-full flex items-center justify-center text-2xl font-black text-white shadow-md">
               {signal.name[0]}
@@ -73,8 +137,12 @@ export function SignalDetails({
             </h2>
             <div className="flex items-center justify-center gap-1.5 mt-1 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               <span>{signal.department}</span>
-              <span>•</span>
-              <span>{signal.level || "100L"}</span>
+              {levelLabel && (
+                <>
+                  <span>•</span>
+                  <span>{levelLabel}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -91,43 +159,86 @@ export function SignalDetails({
           </div>
         </div>
 
-        {/* Action Buttons - Stacked to show the cost */}
+        {/* Action Area */}
         <div className="p-4 bg-muted/50 border-t border-border flex flex-col gap-3">
-          <button
-            onClick={handlePing}
-            disabled={isPinging}
-            className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.98] disabled:opacity-70 disabled:active:scale-100 ${
-              isPending
-                ? "bg-muted text-muted-foreground border border-border"
-                : "text-white bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-200 dark:shadow-none"
-            }`}
-          >
-            {isPinging ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : isPending ? (
-              <>
-                <Clock className="w-4 h-4" />
-                Verification Pending
-              </>
-            ) : (
-              <>
-                <MessageCircle className="w-4 h-4 fill-white/20" />
-                Direct Connect
-              </>
-            )}
-          </button>
+          {requestState.type === "connected" ? (
+            <button
+              onClick={handleOpenChat}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-emerald-500 hover:bg-emerald-600 shadow-md transition-all active:scale-[0.98]"
+            >
+              <MessageCircle className="w-4 h-4 fill-white/20" />
+              Open Chat
+            </button>
+          ) : requestState.type === "sent" ? (
+            <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm bg-muted text-muted-foreground border border-border">
+              <Check className="w-4 h-4" />
+              Request Sent
+            </div>
+          ) : requestState.type === "received" ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleRespond("declined")}
+                disabled={isBusy}
+                className="flex-1 py-3.5 rounded-2xl font-bold text-sm border border-border text-muted-foreground hover:bg-rose-50 hover:text-rose-500 hover:border-rose-200 dark:hover:bg-rose-950/20 transition-all disabled:opacity-50"
+              >
+                {isBusy ? (
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                ) : (
+                  "Decline"
+                )}
+              </button>
+              <button
+                onClick={() => handleRespond("accepted")}
+                disabled={isBusy}
+                className="flex-1 py-3.5 rounded-2xl font-bold text-sm text-white bg-rose-500 hover:bg-rose-600 shadow-md transition-all active:scale-[0.98] disabled:opacity-70"
+              >
+                {isBusy ? (
+                  <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+                ) : (
+                  "Accept"
+                )}
+              </button>
+            </div>
+          ) : isPending ? (
+            <div className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm bg-muted text-muted-foreground border border-border">
+              <Clock className="w-4 h-4" />
+              Verification Pending
+            </div>
+          ) : (
+            <button
+              onClick={handleSendPing}
+              disabled={isBusy}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-sm text-white bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-200 dark:shadow-none transition-all active:scale-[0.98] disabled:opacity-70"
+            >
+              {isBusy ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <>
+                  <Radio className="w-4 h-4" />
+                  Send Ping
+                </>
+              )}
+            </button>
+          )}
 
-          {/* Sub-text reminding them of the cost */}
           <div className="flex justify-between items-center px-2">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              Costs 1 Radar Ping
-            </span>
+            {requestState.type === "none" && !isPending ? (
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Costs 1 Radar Ping
+              </span>
+            ) : requestState.type === "received" ? (
+              <span className="text-[10px] font-bold text-rose-500 uppercase tracking-widest animate-pulse">
+                Pinged you!
+              </span>
+            ) : (
+              <span />
+            )}
             <button
               onClick={onClose}
-              disabled={isPinging}
+              disabled={isBusy}
               className="text-[10px] font-bold text-muted-foreground hover:text-foreground uppercase tracking-widest transition-colors disabled:opacity-50"
             >
-              Cancel
+              Close
             </button>
           </div>
         </div>

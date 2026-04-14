@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { users, likes, conversations } from "@/db/schema";
-import { eq, not, and, or, inArray } from "drizzle-orm";
+import { eq, not, or, inArray, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
 import { redirect } from "next/navigation";
@@ -25,6 +25,8 @@ export default async function DiscoverPage() {
         .from(likes)
         .where(eq(likes.likerId, currentUserId)),
 
+      // Exclude ALL conversations (active or closed) — once two users have
+      // ever matched they should never see each other in discover again.
       db
         .select({
           userOneId: conversations.userOneId,
@@ -32,12 +34,9 @@ export default async function DiscoverPage() {
         })
         .from(conversations)
         .where(
-          and(
-            or(
-              eq(conversations.userOneId, currentUserId),
-              eq(conversations.userTwoId, currentUserId),
-            ),
-            eq(conversations.status, "active"),
+          or(
+            eq(conversations.userOneId, currentUserId),
+            eq(conversations.userTwoId, currentUserId),
           ),
         ),
 

@@ -232,6 +232,21 @@ export async function toggleHideLevel(
   }
 }
 
+export async function toggleRadarVisible(
+  isRadarVisible: boolean,
+): Promise<{ error?: string }> {
+  const userId = await requireSession();
+  try {
+    await db
+      .update(users)
+      .set({ isRadarVisible, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to update setting." };
+  }
+}
+
 export async function toggleCodePublic(
   codeId: string,
   isPublic: boolean,

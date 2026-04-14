@@ -4,32 +4,58 @@ import * as React from "react";
 import { RadarSignalItem } from "./radar-signal";
 import { SignalDetails } from "./signal-details";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { RadarSignal } from "@/types/radar";
+import type { RadarSignal, RadarRequestState } from "@/types/radar";
 
 interface RadarDisplayProps {
   signals: RadarSignal[];
   carouselSignals: RadarSignal[];
   isPending?: boolean;
+  remainingPings: number;
+  /** Map of signalId → current request state between me and that user. */
+  requestStates: Record<string, RadarRequestState>;
 }
 
 export function RadarDisplay({
   signals,
   carouselSignals,
   isPending,
+  remainingPings,
+  requestStates,
 }: RadarDisplayProps) {
   const [selectedSignal, setSelectedSignal] =
     React.useState<RadarSignal | null>(null);
+
+  // Optimistic local overrides — updated immediately when a ping is sent so
+  // the UI reflects "Request Sent" without waiting for a server round-trip.
+  const [localOverrides, setLocalOverrides] = React.useState<
+    Record<string, RadarRequestState>
+  >({});
+
+  const getRequestState = (signalId: string): RadarRequestState =>
+    localOverrides[signalId] ?? requestStates[signalId] ?? { type: "none" };
+
+  const handleRequestSent = (signalId: string) => {
+    setLocalOverrides((prev) => ({ ...prev, [signalId]: { type: "sent" } }));
+  };
 
   // Matches RADAR_MAX_KM in lib/constants/universities.ts
   const radarRange = 1.5;
   const totalSignals = signals.length;
   const angleStep = totalSignals > 0 ? 360 / totalSignals : 0;
 
-  // We explicitly return a RadarSignal array to keep 'hideLevel' alive
   const processedSignals: RadarSignal[] = signals.map((signal, index) => ({
     ...signal,
     angle: index * angleStep,
   }));
+
+  // Carousel sorted closest-first so the most relevant signals lead.
+  const sortedCarousel = [...carouselSignals].sort(
+    (a, b) => a.distance - b.distance,
+  );
+
+  // Count incoming requests for the highlight ring on radar dots.
+  const hasIncoming = (signalId: string) =>
+    getRequestState(signalId).type === "received";
 
   return (
     <div className="relative flex flex-col h-[calc(100dvh-4rem)] overflow-hidden pt-8 bg-background">
@@ -41,12 +67,29 @@ export function RadarDisplay({
       <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-2">
         <div className="bg-rose-500 text-white px-4 py-1.5 rounded-full shadow-md">
           <p className="text-[10px] font-black uppercase tracking-widest">
-            {totalSignals} Active Signals
+            {totalSignals} Active Signal{totalSignals !== 1 ? "s" : ""}
           </p>
         </div>
         <div className="bg-card/90 backdrop-blur-md px-4 py-1.5 rounded-full border border-border shadow-sm">
           <p className="text-[10px] font-bold text-rose-500 dark:text-rose-400 uppercase tracking-widest">
             Range: {radarRange.toFixed(1)} KM
+          </p>
+        </div>
+        <div
+          className={`px-4 py-1.5 rounded-full border shadow-sm backdrop-blur-md ${
+            remainingPings <= 2
+              ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-700"
+              : "bg-card/90 border-border"
+          }`}
+        >
+          <p
+            className={`text-[10px] font-bold uppercase tracking-widest ${
+              remainingPings <= 2
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground"
+            }`}
+          >
+            {remainingPings} Ping{remainingPings !== 1 ? "s" : ""} Left
           </p>
         </div>
       </div>
@@ -83,42 +126,106 @@ export function RadarDisplay({
               key={signal.id}
               signal={signal}
               radarRange={radarRange}
+              isSelected={selectedSignal?.id === signal.id}
+              hasIncomingRequest={hasIncoming(signal.id)}
               onClick={() => setSelectedSignal(signal)}
             />
           ))}
         </div>
       </div>
 
-      {/* Synced Carousel */}
-      <div className="flex-none w-full border-t border-border bg-card/30 backdrop-blur-xl">
-        <div className="flex gap-3 overflow-x-auto py-6 px-4 scrollbar-hide snap-x">
-          {carouselSignals.map((signal) => (
-            <button
-              key={signal.id}
-              onClick={() => setSelectedSignal(signal)}
-              className="shrink-0 w-[240px] snap-center bg-card p-4 rounded-3xl border border-border text-left hover:border-rose-400 transition-all group shadow-sm"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center text-white font-black text-lg">
-                  {signal.name[0]}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h4 className="font-bold truncate">{signal.name}</h4>
-                  <p className="text-[10px] text-muted-foreground font-black truncate">
-                    {signal.department}
-                  </p>
-                </div>
-              </div>
-            </button>
-          ))}
+      {/* Empty state */}
+      {totalSignals === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="text-center space-y-2 opacity-40">
+            <p className="text-sm font-bold uppercase tracking-widest text-muted-foreground">
+              No signals in range
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              Move closer to campus or check back later
+            </p>
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Carousel — sorted by distance */}
+      {sortedCarousel.length > 0 && (
+        <div className="flex-none w-full border-t border-border bg-card/30 backdrop-blur-xl">
+          <div className="flex gap-3 overflow-x-auto py-6 px-4 scrollbar-hide snap-x">
+            {sortedCarousel.map((signal) => {
+              const state = getRequestState(signal.id);
+              return (
+                <button
+                  key={signal.id}
+                  onClick={() => setSelectedSignal(signal)}
+                  className={`shrink-0 w-[240px] snap-center bg-card p-4 rounded-3xl border text-left transition-all group shadow-sm ${
+                    state.type === "received"
+                      ? "border-rose-400 dark:border-rose-500"
+                      : selectedSignal?.id === signal.id
+                        ? "border-rose-300 dark:border-rose-700"
+                        : "border-border hover:border-rose-400"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="relative">
+                      <div className="w-12 h-12 rounded-2xl bg-rose-500 flex items-center justify-center text-white font-black text-lg">
+                        {signal.name[0]}
+                      </div>
+                      {state.type === "received" && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-background animate-pulse" />
+                      )}
+                      {state.type === "sent" && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-background flex items-center justify-center">
+                          <Check className="w-2 h-2 text-white" />
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <h4 className="font-bold truncate">{signal.name}</h4>
+                      <p className="text-[10px] text-muted-foreground font-black truncate">
+                        {signal.department}
+                      </p>
+                      {state.type === "received" && (
+                        <p className="text-[10px] text-rose-500 font-bold mt-0.5">
+                          Pinged you!
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <SignalDetails
         signal={selectedSignal}
         isPending={isPending}
+        requestState={
+          selectedSignal ? getRequestState(selectedSignal.id) : { type: "none" }
+        }
+        onRequestSent={handleRequestSent}
         onClose={() => setSelectedSignal(null)}
       />
     </div>
+  );
+}
+
+// Named import used inside the component — hoisted here to avoid a separate import.
+function Check({ className }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={3}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   );
 }

@@ -38,6 +38,7 @@ export const users = pgTable("users", {
   gender: text("gender"),
   lookingFor: text("looking_for"),
   hideLevel: boolean("hide_level").default(false).notNull(),
+  isRadarVisible: boolean("is_radar_visible").default(true).notNull(),
   bio: text("bio"),
   interests: text("interests")
     .array()
@@ -121,6 +122,11 @@ export const conversationStatusEnum = pgEnum("conversation_status", [
   "closed_inactive",
 ]);
 
+export const conversationOriginEnum = pgEnum("conversation_origin", [
+  "discover",
+  "radar",
+]);
+
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   userOneId: uuid("user_one_id")
@@ -130,6 +136,8 @@ export const conversations = pgTable("conversations", {
     .references(() => users.id)
     .notNull(),
   status: conversationStatusEnum("status").default("active").notNull(),
+  /** How this conversation was initiated — useful for moderation auditing. */
+  origin: conversationOriginEnum("origin").default("discover").notNull(),
   // Updated whenever a message is sent; used for 24h inactivity enforcement
   lastActivityAt: timestamp("last_activity_at").defaultNow().notNull(),
   closedAt: timestamp("closed_at"),
@@ -187,6 +195,27 @@ export const likes = pgTable(
     unique("likes_liker_liked_unique").on(table.likerId, table.likedUserId),
   ],
 );
+
+export const radarRequestStatusEnum = pgEnum("radar_request_status", [
+  "pending",
+  "accepted",
+  "declined",
+  "expired",
+]);
+
+export const radarRequests = pgTable("radar_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  senderId: uuid("sender_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  receiverId: uuid("receiver_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  status: radarRequestStatusEnum("status").default("pending").notNull(),
+  // Requests expire after 24h if not responded to
+  expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
 
 export const reportStatusEnum = pgEnum("report_status", [
   "pending",
