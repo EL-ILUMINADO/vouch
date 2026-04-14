@@ -266,6 +266,24 @@ export async function toggleCodePublic(
   }
 }
 
+export async function updateInterests(
+  interests: string[],
+): Promise<{ error?: string }> {
+  const userId = await requireSession();
+
+  if (interests.length < 3) return { error: "Pick at least 3 interests." };
+
+  try {
+    await db
+      .update(users)
+      .set({ interests, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to save interests. Please try again." };
+  }
+}
+
 export async function addPhoto(
   base64: string,
 ): Promise<{ error?: string; url?: string }> {
