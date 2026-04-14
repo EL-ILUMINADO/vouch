@@ -12,9 +12,11 @@ import { recordLikeAndCheckMatch } from "@/lib/match";
  * Records a like and checks for a mutual match.
  * Returns the conversationId if both users have now liked each other.
  */
-export async function recordLike(
-  likedUserId: string,
-): Promise<{ matched: boolean; conversationId?: string }> {
+export async function recordLike(likedUserId: string): Promise<{
+  matched: boolean;
+  conversationId?: string;
+  limitReached?: boolean;
+}> {
   const cookieStore = await cookies();
   const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
   if (!session) return { matched: false };

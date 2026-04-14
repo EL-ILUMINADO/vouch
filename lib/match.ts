@@ -1,6 +1,9 @@
 import { db } from "@/db";
-import { likes, conversations } from "@/db/schema";
-import { and, or, eq } from "drizzle-orm";
+import { likes, conversations, users } from "@/db/schema";
+import { and, or, eq, gte, count } from "drizzle-orm";
+import { sendPushToUser } from "@/lib/push";
+
+const DAILY_HANDSHAKE_LIMIT = 50;
 
 /**
  * Records a like from `likerId` → `likedUserId`, then checks for a mutual match.
@@ -15,7 +18,26 @@ import { and, or, eq } from "drizzle-orm";
 export async function recordLikeAndCheckMatch(
   likerId: string,
   likedUserId: string,
-): Promise<{ matched: boolean; conversationId?: string }> {
+): Promise<{
+  matched: boolean;
+  conversationId?: string;
+  limitReached?: boolean;
+}> {
+  // Daily handshake quota — count likes sent today (midnight UTC).
+  const todayMidnight = new Date();
+  todayMidnight.setUTCHours(0, 0, 0, 0);
+
+  const [{ value: todayCount }] = await db
+    .select({ value: count() })
+    .from(likes)
+    .where(
+      and(eq(likes.likerId, likerId), gte(likes.createdAt, todayMidnight)),
+    );
+
+  if (todayCount >= DAILY_HANDSHAKE_LIMIT) {
+    return { matched: false, limitReached: true };
+  }
+
   // Upsert: reset a previously-rejected like back to pending (re-like flow)
   await db
     .insert(likes)
@@ -93,6 +115,20 @@ export async function recordLikeAndCheckMatch(
     .insert(conversations)
     .values({ userOneId: likerId, userTwoId: likedUserId, origin: "discover" })
     .returning({ id: conversations.id });
+
+  // Notify the matched user (fire-and-forget).
+  const [liker] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, likerId))
+    .limit(1);
+
+  sendPushToUser(
+    likedUserId,
+    "You got a match!",
+    `${liker?.name ?? "Someone"} matched with you on Vouch.`,
+    `/uplink/${newConvo.id}`,
+  ).catch(() => {});
 
   return { matched: true, conversationId: newConvo.id };
 }

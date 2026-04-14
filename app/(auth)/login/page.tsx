@@ -1,5 +1,13 @@
 import Link from "next/link";
+import Image from "next/image";
 import { LoginForm } from "./login-form";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sign In",
+  description:
+    "Sign in to your Vouch account and connect with verified students on campus.",
+};
 
 export default function LoginPage() {
   return (
@@ -16,14 +24,24 @@ export default function LoginPage() {
           >
             ← Back
           </Link>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight">
-              Welcome back
-              <span className="text-rose-500"> 👋</span>
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Sign in to your Vouch account.
-            </p>
+          <div className="flex items-center gap-3">
+            <Image
+              src="/logo.png"
+              alt="Vouch"
+              width={44}
+              height={44}
+              className="rounded-2xl shadow-sm"
+              priority
+            />
+            <div>
+              <h1 className="text-3xl font-black tracking-tight">
+                Welcome back
+                <span className="text-rose-500"> 👋</span>
+              </h1>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Sign in to your Vouch account.
+              </p>
+            </div>
           </div>
         </div>
 

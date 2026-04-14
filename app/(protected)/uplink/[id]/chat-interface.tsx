@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { sendMessage, deleteMessage, editMessage } from "./actions";
+import {
+  sendMessage,
+  deleteMessage,
+  editMessage,
+  fetchOlderMessages,
+} from "./actions";
 import { useChatMessages } from "./use-chat-messages";
 import { MessageBubble } from "./message-bubble";
 import { MessageContextMenu } from "./message-context-menu";
@@ -13,6 +18,7 @@ interface ChatInterfaceProps {
   conversationId: string;
   currentUserId: string;
   otherUserName: string;
+  hasMore?: boolean;
 }
 
 export function ChatInterface({
@@ -20,6 +26,7 @@ export function ChatInterface({
   conversationId,
   currentUserId,
   otherUserName,
+  hasMore: initialHasMore = false,
 }: ChatInterfaceProps) {
   const { messages, setMessages, isVisible } = useChatMessages(
     initialMessages,
@@ -42,15 +49,81 @@ export function ChatInterface({
     null,
   );
 
+  // ── Pagination
+  const [hasMore, setHasMore] = React.useState(initialHasMore);
+  const [loadingOlder, setLoadingOlder] = React.useState(false);
+  const sentinelRef = React.useRef<HTMLDivElement>(null);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom when messages change.
+  // IntersectionObserver: fires when the sentinel at the top enters the viewport.
   React.useEffect(() => {
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: "smooth",
-    });
+    if (!hasMore) return;
+
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !loadingOlder) {
+          loadOlderMessages();
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMore, loadingOlder, messages]);
+
+  const loadOlderMessages = async () => {
+    if (loadingOlder || !hasMore || messages.length === 0) return;
+    const oldestId = messages[0].id;
+    if (oldestId.startsWith("temp-")) return;
+
+    setLoadingOlder(true);
+
+    const container = scrollRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+
+    const older = await fetchOlderMessages(conversationId, oldestId);
+
+    setMessages((prev) => [...older, ...prev]);
+    setHasMore(older.length === 20);
+    setLoadingOlder(false);
+
+    // Restore scroll position so the view doesn't jump.
+    if (container) {
+      requestAnimationFrame(() => {
+        container.scrollTop = container.scrollHeight - prevScrollHeight;
+      });
+    }
+  };
+
+  // Scroll to bottom when messages change (new incoming / sent).
+  // We only auto-scroll if the user is already near the bottom.
+  const prevMessageCount = React.useRef(messages.length);
+  React.useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const isNearBottom =
+      container.scrollHeight - container.scrollTop - container.clientHeight <
+      120;
+
+    const newMessageArrived = messages.length > prevMessageCount.current;
+    prevMessageCount.current = messages.length;
+
+    if (newMessageArrived && isNearBottom) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
   }, [messages]);
+
+  // Initial scroll to bottom on first mount.
+  React.useEffect(() => {
+    const container = scrollRef.current;
+    if (container) container.scrollTop = container.scrollHeight;
+  }, []);
 
   // Best-effort screenshot / print prevention.
   React.useEffect(() => {
@@ -95,6 +168,15 @@ export function ChatInterface({
 
     setMessages((prev) => [...prev, temp]);
     setReplyingTo(null);
+
+    // Scroll to bottom on send.
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    });
+
     await sendMessage(
       conversationId,
       content,
@@ -166,6 +248,21 @@ export function ChatInterface({
         className="flex-1 overflow-y-auto p-4 space-y-3 select-none"
         style={{ WebkitUserSelect: "none" }}
       >
+        {/* Sentinel — observed to trigger loading older messages */}
+        {hasMore && (
+          <div ref={sentinelRef} className="flex justify-center py-2">
+            {loadingOlder ? (
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest animate-pulse">
+                Loading…
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                Scroll up for older messages
+              </span>
+            )}
+          </div>
+        )}
+
         {messages.filter(isVisible).map((msg) => (
           <MessageBubble
             key={msg.id}

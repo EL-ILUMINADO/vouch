@@ -7,6 +7,7 @@ export interface RadarSignal {
   level: string;
   hideLevel: boolean | null;
   distance: number;
+  lastActiveAt?: Date | string | null;
   angle?: number;
 }
 

@@ -21,7 +21,7 @@ const CSP = [
   "img-src 'self' data: blob: https://res.cloudinary.com",
   "media-src 'self' blob: https://res.cloudinary.com",
   // Pusher WebSocket & HTTP endpoints + Cloudinary direct upload
-  "connect-src 'self' wss://ws-mt1.pusher.com https://sockjs-mt1.pusher.com https://api.pusherapp.com https://api.cloudinary.com",
+  "connect-src 'self' wss://ws-mt1.pusher.com https://sockjs-mt1.pusher.com https://api.pusherapp.com https://api.cloudinary.com https://res.cloudinary.com",
   "font-src 'self'",
   // Prevent this page from being embedded anywhere (clickjacking)
   "frame-ancestors 'none'",
@@ -104,5 +104,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/((?!api|_next/static|_next/image|favicon.ico|manifest\\.json|sw\\.js|logo\\.png|icon\\.png|apple-icon\\.png).*)",
+  ],
 };

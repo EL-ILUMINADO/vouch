@@ -1,12 +1,103 @@
 "use server";
 
 import { db } from "@/db";
-import { messages, reports, users, conversations } from "@/db/schema";
+import {
+  messages,
+  reports,
+  users,
+  conversations,
+  blocks,
+  radarRequests,
+  likes,
+} from "@/db/schema";
 import { decrypt } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher-server";
 import { cookies } from "next/headers";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, or, and, lt, asc } from "drizzle-orm";
 import { recordLikeAndCheckMatch } from "@/lib/match";
+import { revalidatePath } from "next/cache";
+
+/**
+ * Block a user. Severs the active conversation, cancels pending radar requests,
+ * and prevents both parties from appearing on each other's Radar / Discover.
+ */
+export async function blockUser(
+  conversationId: string,
+  targetId: string,
+): Promise<{ success: true } | { error: string }> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) return { error: "Authentication required." };
+
+  const session = await decrypt(token);
+  if (!session) return { error: "Invalid session." };
+
+  const currentUserId = session.userId as string;
+  if (currentUserId === targetId) return { error: "Cannot block yourself." };
+
+  try {
+    // 1. Insert block (ignore if already blocked).
+    await db
+      .insert(blocks)
+      .values({ blockerId: currentUserId, blockedId: targetId })
+      .onConflictDoNothing();
+
+    // 2. Close the conversation.
+    await db
+      .update(conversations)
+      .set({
+        status: "closed_inactive",
+        closedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(conversations.id, conversationId));
+
+    // 3. Cancel pending radar requests in both directions.
+    await db
+      .update(radarRequests)
+      .set({ status: "declined" })
+      .where(
+        and(
+          eq(radarRequests.status, "pending"),
+          or(
+            and(
+              eq(radarRequests.senderId, currentUserId),
+              eq(radarRequests.receiverId, targetId),
+            ),
+            and(
+              eq(radarRequests.senderId, targetId),
+              eq(radarRequests.receiverId, currentUserId),
+            ),
+          ),
+        ),
+      );
+
+    // 4. Remove any pending mutual likes so neither party shows in the other's likes page.
+    await db
+      .delete(likes)
+      .where(
+        or(
+          and(
+            eq(likes.likerId, currentUserId),
+            eq(likes.likedUserId, targetId),
+          ),
+          and(
+            eq(likes.likerId, targetId),
+            eq(likes.likedUserId, currentUserId),
+          ),
+        ),
+      );
+
+    revalidatePath("/radar");
+    revalidatePath("/discover");
+    revalidatePath("/chats");
+
+    return { success: true };
+  } catch (err) {
+    console.error("[BLOCK_ERROR]", err);
+    return { error: "Failed to block user." };
+  }
+}
 
 export async function sendMessage(
   conversationId: string,
@@ -35,12 +126,43 @@ export async function sendMessage(
 
   // Reject sends to closed conversations
   const [convo] = await db
-    .select({ status: conversations.status })
+    .select({
+      status: conversations.status,
+      userOneId: conversations.userOneId,
+      userTwoId: conversations.userTwoId,
+    })
     .from(conversations)
     .where(eq(conversations.id, conversationId))
     .limit(1);
 
   if (!convo || convo.status === "closed_inactive") {
+    return { error: "This chat is closed." };
+  }
+
+  const otherUserId =
+    convo.userOneId === (session.userId as string)
+      ? convo.userTwoId
+      : convo.userOneId;
+
+  // Block guard — prevent messaging if either party has blocked the other.
+  const [blockRecord] = await db
+    .select({ id: blocks.id })
+    .from(blocks)
+    .where(
+      or(
+        and(
+          eq(blocks.blockerId, session.userId as string),
+          eq(blocks.blockedId, otherUserId),
+        ),
+        and(
+          eq(blocks.blockerId, otherUserId),
+          eq(blocks.blockedId, session.userId as string),
+        ),
+      ),
+    )
+    .limit(1);
+
+  if (blockRecord) {
     return { error: "This chat is closed." };
   }
 
@@ -289,4 +411,47 @@ export async function reportUser(
     console.error("[REPORT_ERROR]", err);
     return { error: "Failed to submit report." };
   }
+}
+
+const PAGE_SIZE = 20;
+
+/**
+ * Cursor-based pagination for chat history.
+ * Returns up to 20 messages older than `beforeId`, in ascending order
+ * (ready to be prepended to the existing list).
+ */
+export async function fetchOlderMessages(
+  conversationId: string,
+  beforeId: string,
+): Promise<import("./types").Message[]> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) return [];
+
+  const session = await decrypt(token);
+  if (!session) return [];
+
+  // Resolve the cursor message's createdAt so we can page by timestamp.
+  const [cursor] = await db
+    .select({ createdAt: messages.createdAt })
+    .from(messages)
+    .where(eq(messages.id, beforeId))
+    .limit(1);
+
+  if (!cursor) return [];
+
+  const older = await db
+    .select()
+    .from(messages)
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        lt(messages.createdAt, cursor.createdAt),
+      ),
+    )
+    .orderBy(desc(messages.createdAt))
+    .limit(PAGE_SIZE);
+
+  // Return in ascending order so they can be prepended correctly.
+  return older.reverse();
 }

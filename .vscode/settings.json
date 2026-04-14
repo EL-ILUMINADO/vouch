@@ -3,12 +3,14 @@
     "Akoka",
     "Araba",
     "Avant",
+    "beforeinstallprompt",
     "clickjacking",
     "colour",
     "conv",
     "Convo",
     "cooldown",
     "didn",
+    "dismissable",
     "glassmorphism",
     "groq",
     "Hentai",
@@ -31,6 +33,7 @@
     "unilag",
     "upsell",
     "Uselu",
-    "vouchdating"
+    "vouchdating",
+    "webpush"
   ]
 }

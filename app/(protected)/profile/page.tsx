@@ -1,10 +1,17 @@
+import type { Metadata } from "next";
 import { db } from "@/db";
 import { users, vouchCodes } from "@/db/schema";
+
+export const metadata: Metadata = {
+  title: "Profile",
+  description: "Manage your Vouch profile, settings, and notifications.",
+};
 import { eq } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { NotificationToggle } from "@/components/NotificationToggle";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import {
@@ -271,6 +278,8 @@ export default async function ProfilePage() {
             </div>
             <ThemeToggle />
           </div>
+
+          <NotificationToggle />
 
           <div className="bg-card p-4 rounded-3xl border border-border shadow-sm space-y-3">
             <div className="flex justify-between items-center">

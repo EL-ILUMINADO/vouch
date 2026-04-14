@@ -5,6 +5,7 @@ import { useRef, useState, useCallback, useEffect } from "react";
 import { MessageCircle, RotateCcw, X, Heart, BadgeCheck } from "lucide-react";
 import { pingUser, recordLike } from "./actions";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 const SWIPE_THRESHOLD = 100;
 const MAX_UNDOS = 3;
@@ -106,6 +107,15 @@ export function SwipeStack({
       if (dir === "right") {
         recordLike(current.id)
           .then((result) => {
+            if (result.limitReached) {
+              toast.error(
+                "Daily Handshake limit reached. Try again tomorrow.",
+                {
+                  description: "You've sent 50 likes today.",
+                },
+              );
+              return;
+            }
             if (result.matched && result.conversationId) {
               router.push(`/uplink/${result.conversationId}`);
             }
