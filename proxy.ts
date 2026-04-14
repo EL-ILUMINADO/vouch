@@ -10,23 +10,64 @@ const PUBLIC_ROUTES = [
   "/onboarding/verify",
 ];
 
+const ALLOWED_METHODS = ["GET", "HEAD", "POST", "OPTIONS"];
+
+const CSP = [
+  "default-src 'self'",
+  // Next.js requires unsafe-inline / unsafe-eval for its runtime
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+  "style-src 'self' 'unsafe-inline'",
+  // Cloudinary for user images/videos
+  "img-src 'self' data: blob: https://res.cloudinary.com",
+  "media-src 'self' blob: https://res.cloudinary.com",
+  // Pusher WebSocket & HTTP endpoints
+  "connect-src 'self' wss://ws-mt1.pusher.com https://sockjs-mt1.pusher.com https://api.pusherapp.com",
+  "font-src 'self'",
+  // Prevent this page from being embedded anywhere (clickjacking)
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "base-uri 'self'",
+].join("; ");
+
+function withSecurityHeaders(res: NextResponse): NextResponse {
+  res.headers.set("Content-Security-Policy", CSP);
+  res.headers.set("X-Frame-Options", "DENY");
+  res.headers.set("X-Content-Type-Options", "nosniff");
+  res.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.headers.set(
+    "Permissions-Policy",
+    "camera=(), microphone=(), geolocation=()",
+  );
+  return res;
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Block any HTTP method that isn't needed by this app
+  if (!ALLOWED_METHODS.includes(request.method)) {
+    return new NextResponse(null, {
+      status: 405,
+      headers: { Allow: ALLOWED_METHODS.join(", ") },
+    });
+  }
 
   // --- Admin routes ---
   if (pathname.startsWith("/admin")) {
     if (pathname === "/admin/login") {
-      return NextResponse.next();
+      return withSecurityHeaders(NextResponse.next());
     }
 
     const adminToken = request.cookies.get("vouch_admin")?.value;
     const isAdmin = adminToken ? await verifyAdminSession(adminToken) : false;
 
     if (!isAdmin) {
-      return NextResponse.redirect(new URL("/admin/login", request.url));
+      return withSecurityHeaders(
+        NextResponse.redirect(new URL("/admin/login", request.url)),
+      );
     }
 
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   // --- User routes ---
@@ -40,20 +81,26 @@ export async function proxy(request: NextRequest) {
 
   if (PUBLIC_ROUTES.includes(pathname)) {
     if (isAuthenticated && hasCompletedOnboarding && pathname === "/") {
-      return NextResponse.redirect(new URL("/radar", request.url));
+      return withSecurityHeaders(
+        NextResponse.redirect(new URL("/radar", request.url)),
+      );
     }
-    return NextResponse.next();
+    return withSecurityHeaders(NextResponse.next());
   }
 
   if (!isAuthenticated) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return withSecurityHeaders(
+      NextResponse.redirect(new URL("/", request.url)),
+    );
   }
 
   if (!hasCompletedOnboarding && !pathname.startsWith("/onboarding")) {
-    return NextResponse.redirect(new URL("/onboarding/verify", request.url));
+    return withSecurityHeaders(
+      NextResponse.redirect(new URL("/onboarding/verify", request.url)),
+    );
   }
 
-  return NextResponse.next();
+  return withSecurityHeaders(NextResponse.next());
 }
 
 export const config = {

@@ -12,6 +12,7 @@ import {
   DeleteAccountButton,
   CopyButtonClient,
   CodeVisibilityToggle,
+  RadarVisibilityToggle,
 } from "./account-actions";
 import { LivenessTestModal } from "@/components/verification/LivenessTestModal";
 import { ProfileCard } from "./profile-card";
@@ -34,6 +35,7 @@ export default async function ProfilePage() {
       department: users.department,
       level: users.level,
       hideLevel: users.hideLevel,
+      isRadarVisible: users.isRadarVisible,
       verificationStatus: users.verificationStatus,
       requiresPulseCheck: users.requiresPulseCheck,
       images: users.images,
@@ -223,6 +225,31 @@ export default async function ProfilePage() {
               </span>
             </div>
             <ThemeToggle />
+          </div>
+
+          <div className="bg-card p-4 rounded-3xl border border-border shadow-sm space-y-3">
+            <div className="flex justify-between items-center">
+              <div>
+                <span className="block text-sm font-bold text-foreground">
+                  Radar Visibility
+                </span>
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                  {user.isRadarVisible
+                    ? "Visible to nearby students"
+                    : "Hidden from radar"}
+                </span>
+              </div>
+              <RadarVisibilityToggle initialVisible={user.isRadarVisible} />
+            </div>
+            {user.intent === "Short-term" && (
+              <p className="text-[10px] text-amber-600 dark:text-amber-400 font-medium leading-relaxed border-t border-border pt-3">
+                Your intent is set to{" "}
+                <span className="font-bold">Short-term</span>, so you won&apos;t
+                appear on anyone&apos;s radar regardless of the toggle above.
+                Update your intent in your profile to become discoverable via
+                radar.
+              </p>
+            )}
           </div>
         </section>
 

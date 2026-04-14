@@ -1,69 +1,126 @@
 import { db } from "@/db";
-import { conversations, users, platformMessages } from "@/db/schema";
-import { eq, or, desc, sql, and, ne } from "drizzle-orm";
+import {
+  conversations,
+  users,
+  platformMessages,
+  radarRequests,
+} from "@/db/schema";
+import { eq, or, desc, sql, and, ne, inArray } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
 import Link from "next/link";
 import { MessageSquareOff } from "lucide-react";
+import { RadarRequestCard } from "./radar-request-card";
+import type { PendingRadarRequest } from "./radar-request-card";
 
 export default async function ChatsPage() {
   const cookieStore = await cookies();
   const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
   const currentUserId = session?.userId as string;
 
-  const [userConversations, unreadPlatformCount, latestPlatformMsg] =
-    await Promise.all([
-      db
-        .select({
-          id: conversations.id,
-          updatedAt: conversations.updatedAt,
-          otherUser: {
-            id: users.id,
-            name: users.name,
-            department: users.department,
-          },
-        })
-        .from(conversations)
-        .innerJoin(
-          users,
+  const [
+    userConversations,
+    unreadPlatformCount,
+    latestPlatformMsg,
+    rawPendingPings,
+  ] = await Promise.all([
+    db
+      .select({
+        id: conversations.id,
+        updatedAt: conversations.updatedAt,
+        otherUser: {
+          id: users.id,
+          name: users.name,
+          department: users.department,
+        },
+      })
+      .from(conversations)
+      .innerJoin(
+        users,
+        or(
+          sql`${conversations.userOneId} = ${users.id} AND ${conversations.userTwoId} = ${currentUserId}`,
+          sql`${conversations.userTwoId} = ${users.id} AND ${conversations.userOneId} = ${currentUserId}`,
+        ),
+      )
+      .where(
+        and(
           or(
-            sql`${conversations.userOneId} = ${users.id} AND ${conversations.userTwoId} = ${currentUserId}`,
-            sql`${conversations.userTwoId} = ${users.id} AND ${conversations.userOneId} = ${currentUserId}`,
+            eq(conversations.userOneId, currentUserId),
+            eq(conversations.userTwoId, currentUserId),
           ),
-        )
-        .where(
-          and(
-            or(
-              eq(conversations.userOneId, currentUserId),
-              eq(conversations.userTwoId, currentUserId),
-            ),
-            ne(conversations.status, "closed_inactive"),
-          ),
-        )
-        .orderBy(desc(conversations.updatedAt)),
+          ne(conversations.status, "closed_inactive"),
+        ),
+      )
+      .orderBy(desc(conversations.updatedAt)),
 
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(platformMessages)
-        .where(
-          and(
-            eq(platformMessages.recipientId, currentUserId),
-            eq(platformMessages.isRead, false),
-          ),
-        )
-        .then((r) => r[0]?.count ?? 0),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(platformMessages)
+      .where(
+        and(
+          eq(platformMessages.recipientId, currentUserId),
+          eq(platformMessages.isRead, false),
+        ),
+      )
+      .then((r) => r[0]?.count ?? 0),
 
-      db
-        .select({
-          content: platformMessages.content,
-          createdAt: platformMessages.createdAt,
-        })
-        .from(platformMessages)
-        .where(eq(platformMessages.recipientId, currentUserId))
-        .orderBy(desc(platformMessages.createdAt))
-        .limit(1)
-        .then((r) => r[0] ?? null),
-    ]);
+    db
+      .select({
+        content: platformMessages.content,
+        createdAt: platformMessages.createdAt,
+      })
+      .from(platformMessages)
+      .where(eq(platformMessages.recipientId, currentUserId))
+      .orderBy(desc(platformMessages.createdAt))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+
+    // Incoming radar pings awaiting my response.
+    db
+      .select({
+        id: radarRequests.id,
+        senderId: radarRequests.senderId,
+      })
+      .from(radarRequests)
+      .where(
+        and(
+          eq(radarRequests.receiverId, currentUserId),
+          eq(radarRequests.status, "pending"),
+        ),
+      ),
+  ]);
+
+  // Hydrate sender details for each pending ping.
+  let pendingPings: PendingRadarRequest[] = [];
+  if (rawPendingPings.length > 0) {
+    const senderIds = rawPendingPings.map((r) => r.senderId);
+    const senders = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        department: users.department,
+        level: users.level,
+        hideLevel: users.hideLevel,
+      })
+      .from(users)
+      .where(inArray(users.id, senderIds));
+
+    const senderMap = Object.fromEntries(senders.map((s) => [s.id, s]));
+
+    pendingPings = rawPendingPings
+      .filter((r) => senderMap[r.senderId])
+      .map((r) => {
+        const s = senderMap[r.senderId];
+        return {
+          requestId: r.id,
+          senderId: s.id,
+          senderName: s.name,
+          senderDepartment: s.department,
+          senderLevel: s.level,
+          senderHideLevel: s.hideLevel,
+        };
+      });
+  }
 
   const totalConnections =
     userConversations.length + (latestPlatformMsg ? 1 : 0);
@@ -81,6 +138,18 @@ export default async function ChatsPage() {
       </header>
 
       <div className="px-4 space-y-1">
+        {/* Incoming radar pings — requires action before a chat opens */}
+        {pendingPings.length > 0 && (
+          <div className="mb-4 space-y-2">
+            <p className="text-[10px] font-black uppercase tracking-[0.2em] text-rose-500 px-1 mb-3">
+              Radar Pings · {pendingPings.length} pending
+            </p>
+            {pendingPings.map((ping) => (
+              <RadarRequestCard key={ping.requestId} request={ping} />
+            ))}
+          </div>
+        )}
+
         {/* Vouch Platform Inbox — pinned at top if any messages exist */}
         {latestPlatformMsg && (
           <Link
@@ -95,15 +164,15 @@ export default async function ChatsPage() {
                 </span>
               )}
             </div>
-            <div className="flex-1 border-b border-border pb-4">
-              <div className="flex justify-between items-baseline">
-                <h3 className="font-bold text-foreground flex items-center gap-1.5">
+            <div className="flex-1 min-w-0 border-b border-border pb-4">
+              <div className="flex justify-between items-baseline gap-2">
+                <h3 className="font-bold text-foreground flex items-center gap-1.5 truncate">
                   Vouch
                   <span className="text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded-full">
                     Platform
                   </span>
                 </h3>
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tighter">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tighter shrink-0">
                   {new Date(latestPlatformMsg.createdAt).toLocaleDateString()}
                 </span>
               </div>
@@ -114,7 +183,9 @@ export default async function ChatsPage() {
           </Link>
         )}
 
-        {userConversations.length === 0 && !latestPlatformMsg ? (
+        {userConversations.length === 0 &&
+        !latestPlatformMsg &&
+        pendingPings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/40 space-y-4">
             <MessageSquareOff className="w-12 h-12 stroke-1" />
             <p className="text-sm font-medium">No active handshakes yet.</p>

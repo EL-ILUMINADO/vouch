@@ -91,7 +91,7 @@ export async function recordLikeAndCheckMatch(
   // Create a brand-new conversation
   const [newConvo] = await db
     .insert(conversations)
-    .values({ userOneId: likerId, userTwoId: likedUserId })
+    .values({ userOneId: likerId, userTwoId: likedUserId, origin: "discover" })
     .returning({ id: conversations.id });
 
   return { matched: true, conversationId: newConvo.id };

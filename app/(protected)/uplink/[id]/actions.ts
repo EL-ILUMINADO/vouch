@@ -97,7 +97,7 @@ export async function reLikeUser(
 export type ReportResult = { success: true } | { error: string };
 
 export async function reportUser(
-  conversationId: string,
+  conversationId: string | null,
   reportedUserId: string,
   reason: string,
   description: string,
@@ -115,28 +115,38 @@ export async function reportUser(
     return { error: "Cannot report yourself." };
 
   try {
-    const last20 = await db
-      .select({
-        senderId: messages.senderId,
-        content: messages.content,
-        createdAt: messages.createdAt,
-      })
-      .from(messages)
-      .where(eq(messages.conversationId, conversationId))
-      .orderBy(desc(messages.createdAt))
-      .limit(20);
+    // Only fetch a message snapshot when there is an associated conversation.
+    let snapshot: Array<{
+      senderId: string;
+      senderName: string;
+      content: string;
+      createdAt: string;
+    }> = [];
 
-    const allSenders = await db
-      .select({ id: users.id, name: users.name })
-      .from(users);
-    const nameMap = new Map(allSenders.map((u) => [u.id, u.name]));
+    if (conversationId) {
+      const last20 = await db
+        .select({
+          senderId: messages.senderId,
+          content: messages.content,
+          createdAt: messages.createdAt,
+        })
+        .from(messages)
+        .where(eq(messages.conversationId, conversationId))
+        .orderBy(desc(messages.createdAt))
+        .limit(20);
 
-    const snapshot = last20.reverse().map((m) => ({
-      senderId: m.senderId,
-      senderName: nameMap.get(m.senderId) ?? "Unknown",
-      content: m.content,
-      createdAt: m.createdAt.toISOString(),
-    }));
+      const allSenders = await db
+        .select({ id: users.id, name: users.name })
+        .from(users);
+      const nameMap = new Map(allSenders.map((u) => [u.id, u.name]));
+
+      snapshot = last20.reverse().map((m) => ({
+        senderId: m.senderId,
+        senderName: nameMap.get(m.senderId) ?? "Unknown",
+        content: m.content,
+        createdAt: m.createdAt.toISOString(),
+      }));
+    }
 
     await db.insert(reports).values({
       reporterId,

@@ -108,9 +108,23 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
         >
           <ChevronLeft className="w-5 h-5 text-foreground" />
         </Link>
-        <div className="w-9 h-9 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold shrink-0">
-          {otherUser.name[0]}
-        </div>
+        {/* Avatar — tap to view the other user's profile */}
+        <Link
+          href={`/user/${otherUser.id}`}
+          className="w-9 h-9 rounded-full overflow-hidden bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold shrink-0 ring-2 ring-transparent hover:ring-rose-400/40 transition-all"
+          aria-label={`View ${otherUser.name}'s profile`}
+        >
+          {otherUser.profileImage ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={otherUser.profileImage}
+              alt={otherUser.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            otherUser.name[0]
+          )}
+        </Link>
         <div className="flex-1 min-w-0">
           <h2 className="text-base font-bold text-foreground tracking-tight">
             {otherUser.name}

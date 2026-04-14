@@ -2,14 +2,7 @@
 "use client";
 
 import { useRef, useState, useCallback, useEffect } from "react";
-import {
-  MessageCircle,
-  RotateCcw,
-  X,
-  Heart,
-  ChevronDown,
-  BadgeCheck,
-} from "lucide-react";
+import { MessageCircle, RotateCcw, X, Heart, BadgeCheck } from "lucide-react";
 import { pingUser, recordLike } from "./actions";
 import { useRouter } from "next/navigation";
 
@@ -80,7 +73,6 @@ export function SwipeStack({
   const [stack, setStack] = useState(initialPeers);
   const [history, setHistory] = useState<DiscoverPeer[]>([]);
   const [undosUsed, setUndosUsed] = useState(0);
-  const [selectedPeer, setSelectedPeer] = useState<DiscoverPeer | null>(null);
   const [pinging, setPinging] = useState(false);
 
   // Drag state
@@ -108,20 +100,22 @@ export function SwipeStack({
     }, 300);
   }, []);
 
-  const handleSwipe = (dir: "left" | "right") => {
-    if (!current || flyDir) return;
-    if (dir === "right") {
-      // Fire-and-forget, but redirect if a mutual match is created
-      recordLike(current.id)
-        .then((result) => {
-          if (result.matched && result.conversationId) {
-            router.push(`/uplink/${result.conversationId}`);
-          }
-        })
-        .catch(() => {});
-    }
-    popCard(current, dir);
-  };
+  const handleSwipe = useCallback(
+    (dir: "left" | "right") => {
+      if (!current || flyDir) return;
+      if (dir === "right") {
+        recordLike(current.id)
+          .then((result) => {
+            if (result.matched && result.conversationId) {
+              router.push(`/uplink/${result.conversationId}`);
+            }
+          })
+          .catch(() => {});
+      }
+      popCard(current, dir);
+    },
+    [current, flyDir, popCard, router],
+  );
 
   const handleUndo = () => {
     if (undosUsed >= MAX_UNDOS || history.length === 0) return;
@@ -163,14 +157,15 @@ export function SwipeStack({
     setIsDragging(false);
 
     if (!dragMoved.current && current) {
-      // It was a tap — open profile sheet
-      setSelectedPeer(current);
+      // Tap — navigate to the user's full profile page
       setOffset({ x: 0, y: 0 });
+      router.push(`/user/${current.id}`);
       return;
     }
 
     if (Math.abs(offset.x) > SWIPE_THRESHOLD && current) {
-      popCard(current, offset.x > 0 ? "right" : "left");
+      // Use handleSwipe so recordLike is called on right-swipes
+      handleSwipe(offset.x > 0 ? "right" : "left");
     } else {
       setOffset({ x: 0, y: 0 });
     }
@@ -302,17 +297,6 @@ export function SwipeStack({
           <Heart className="w-6 h-6" />
         </button>
       </div>
-
-      {/* Profile sheet */}
-      {selectedPeer && (
-        <ProfileSheet
-          peer={selectedPeer}
-          myInterests={myInterests}
-          onClose={() => setSelectedPeer(null)}
-          onPing={() => handlePing(selectedPeer.id)}
-          pinging={pinging}
-        />
-      )}
     </>
   );
 }
@@ -331,6 +315,9 @@ function CardFace({
   matchPct?: number;
 }) {
   const imgSrc = peer.profileImage ?? peer.images?.[0] ?? null;
+
+  // Suppress unused-variable warning — myInterests kept for future shared-interest badge on card
+  void myInterests;
 
   return (
     <div className="w-full h-full bg-card flex flex-col">
@@ -364,6 +351,9 @@ function CardFace({
             {peer.department}
             {!peer.hideLevel && ` • ${peer.level}`}
           </p>
+          {peer.verificationStatus === "verified" && (
+            <BadgeCheck className="inline w-3.5 h-3.5 text-rose-300 mt-1" />
+          )}
         </div>
       </div>
 
@@ -372,176 +362,6 @@ function CardFace({
         <p className="text-[10px] text-muted-foreground/50 font-medium uppercase tracking-widest">
           Tap to view profile
         </p>
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Profile sheet (bottom drawer)
-// ---------------------------------------------------------------------------
-
-function ProfileSheet({
-  peer,
-  myInterests,
-  onClose,
-  onPing,
-  pinging,
-}: {
-  peer: DiscoverPeer;
-  myInterests: string[];
-  onClose: () => void;
-  onPing: () => void;
-  pinging: boolean;
-}) {
-  const sharedInterests = peer.interests.filter((i) => myInterests.includes(i));
-  const matchPct = calcMatch(myInterests, peer.interests);
-  const imgSrc = peer.profileImage ?? peer.images?.[0] ?? null;
-
-  return (
-    <div className="fixed inset-0 z-50 flex flex-col justify-end md:justify-center md:items-center">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Sheet — mobile: 90%+ height bottom sheet | desktop: 70% width centered */}
-      <div className="relative bg-background rounded-t-[2rem] md:rounded-[2rem] min-h-[90svh] md:min-h-0 md:max-h-[85vh] w-full md:w-[70%] overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
-        {/* Handle bar + close */}
-        <div className="sticky top-0 bg-background/95 backdrop-blur-sm pt-3 pb-3 flex flex-col items-center border-b border-border z-10">
-          <div className="w-10 h-1 rounded-full bg-muted-foreground/20 mb-2 md:hidden" />
-          <button
-            onClick={onClose}
-            className="absolute right-4 top-3 p-1.5 rounded-full hover:bg-accent transition-colors"
-          >
-            <ChevronDown className="w-5 h-5 text-muted-foreground" />
-          </button>
-        </div>
-
-        <div className="p-6 space-y-6 pb-10">
-          {/* Header */}
-          <div className="flex items-center gap-4">
-            {imgSrc ? (
-              <img
-                src={imgSrc}
-                alt={peer.name}
-                className="w-16 h-16 rounded-full object-cover ring-2 ring-rose-400/30 shrink-0"
-              />
-            ) : (
-              <div className="w-16 h-16 rounded-full bg-linear-to-br from-rose-400 to-pink-500 flex items-center justify-center text-2xl font-black text-white shrink-0">
-                {peer.name[0]}
-              </div>
-            )}
-            <div className="space-y-0.5">
-              <div className="flex items-center gap-1.5">
-                <h3 className="text-xl font-black text-foreground">
-                  {peer.name}
-                </h3>
-                {peer.verificationStatus === "verified" && (
-                  <BadgeCheck className="w-4 h-4 text-rose-500 shrink-0" />
-                )}
-              </div>
-              <p className="text-xs text-muted-foreground font-medium">
-                {peer.department}
-                {!peer.hideLevel && ` · ${peer.level}`}
-              </p>
-              {matchPct > 0 && (
-                <span className="inline-block text-[10px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full">
-                  {matchPct}% match
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Bio headline */}
-          {peer.bio_headline && (
-            <p className="text-sm text-foreground leading-relaxed italic border-l-2 border-rose-500/40 pl-3">
-              &ldquo;{peer.bio_headline}&rdquo;
-            </p>
-          )}
-
-          {/* Interests */}
-          {peer.interests.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Interests
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {peer.interests.map((tag) => {
-                  const isShared = sharedInterests.includes(tag);
-                  return (
-                    <span
-                      key={tag}
-                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors ${
-                        isShared
-                          ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400"
-                          : "bg-muted/50 border-border text-muted-foreground"
-                      }`}
-                    >
-                      {isShared ? "✓ " : ""}
-                      {tag}
-                    </span>
-                  );
-                })}
-              </div>
-              {sharedInterests.length > 0 && (
-                <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
-                  {sharedInterests.length} shared interest
-                  {sharedInterests.length !== 1 ? "s" : ""} with you
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Vibe tags */}
-          {(peer.intent || peer.social_energy || peer.energy_vibe) && (
-            <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
-                Vibe
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {peer.intent && (
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-full">
-                    {peer.intent}
-                  </span>
-                )}
-                {peer.social_energy && (
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                    {peer.social_energy}
-                  </span>
-                )}
-                {peer.energy_vibe && (
-                  <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                    {peer.energy_vibe}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Prompt */}
-          {peer.prompt_question && peer.prompt_answer && (
-            <div className="bg-muted/40 rounded-2xl p-4 space-y-1.5">
-              <p className="text-[10px] font-black text-muted-foreground uppercase tracking-wider">
-                {peer.prompt_question}
-              </p>
-              <p className="text-sm text-foreground font-medium leading-relaxed">
-                {peer.prompt_answer}
-              </p>
-            </div>
-          )}
-
-          {/* Ping CTA */}
-          <button
-            onClick={onPing}
-            disabled={pinging}
-            className="w-full h-14 rounded-2xl bg-rose-500 text-white font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 shadow-lg shadow-rose-200 dark:shadow-none active:scale-[0.98] transition-transform disabled:opacity-70"
-          >
-            <MessageCircle className="w-4 h-4" />
-            {pinging ? "Opening chat..." : "Ping"}
-          </button>
-        </div>
       </div>
     </div>
   );

@@ -10,7 +10,12 @@ import {
   Copy,
   Check,
 } from "lucide-react";
-import { logout, deleteAccount, toggleCodePublic } from "./actions";
+import {
+  logout,
+  deleteAccount,
+  toggleCodePublic,
+  toggleRadarVisible,
+} from "./actions";
 
 // ---------------------------------------------------------------------------
 // Logout button
@@ -258,6 +263,49 @@ export function CodeVisibilityToggle({
       }`}
     >
       {isPublic ? "Public" : "Private"}
+    </button>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Radar visibility toggle
+// ---------------------------------------------------------------------------
+
+export function RadarVisibilityToggle({
+  initialVisible,
+}: {
+  initialVisible: boolean;
+}) {
+  const [visible, setVisible] = React.useState(initialVisible);
+  const [pending, setPending] = React.useState(false);
+
+  const handle = async () => {
+    setPending(true);
+    const next = !visible;
+    setVisible(next); // optimistic
+    const result = await toggleRadarVisible(next);
+    if (result.error) setVisible(!next); // revert on error
+    setPending(false);
+  };
+
+  return (
+    <button
+      onClick={handle}
+      disabled={pending}
+      title={
+        visible
+          ? "You appear on nearby students' radar — click to hide yourself"
+          : "You are hidden from radar — click to become visible"
+      }
+      className={`relative inline-flex items-center w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 disabled:opacity-50 ${
+        visible ? "bg-rose-500" : "bg-muted border border-border"
+      }`}
+    >
+      <span
+        className={`inline-block w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+          visible ? "translate-x-6" : "translate-x-1"
+        }`}
+      />
     </button>
   );
 }

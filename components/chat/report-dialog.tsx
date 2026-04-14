@@ -22,7 +22,7 @@ const REASONS = [
 ];
 
 interface ReportDialogProps {
-  conversationId: string;
+  conversationId?: string;
   reportedUserId: string;
   reportedUserName: string;
 }
@@ -45,7 +45,7 @@ export function ReportDialog({
     setError("");
 
     const result = await reportUser(
-      conversationId,
+      conversationId ?? null,
       reportedUserId,
       reason,
       description,
@@ -138,8 +138,9 @@ export function ReportDialog({
             )}
 
             <p className="text-xs text-muted-foreground">
-              The last 20 messages from this conversation will be included with
-              your report for review.
+              {conversationId
+                ? "The last 20 messages from this conversation will be included with your report for review."
+                : "Your report will be reviewed by our moderation team."}
             </p>
 
             <DialogFooter showCloseButton>
