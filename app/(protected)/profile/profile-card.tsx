@@ -3,9 +3,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Pencil } from "lucide-react";
+import { Pencil, Check, X, Loader2 } from "lucide-react";
 import { ProfilePhotos } from "./profile-photos";
-import { toggleHideLevel } from "./actions";
+import { toggleHideLevel, updateBio } from "./actions";
 
 interface Props {
   name: string;
@@ -44,6 +44,12 @@ export function ProfileCard({
   const [hideLevel, setHideLevel] = React.useState(initialHideLevel);
   const [hideLevelPending, setHideLevelPending] = React.useState(false);
 
+  // Bio editing state
+  const [bioValue, setBioValue] = React.useState(bioHeadline ?? "");
+  const [bioEditing, setBioEditing] = React.useState(false);
+  const [bioPending, setBioPending] = React.useState(false);
+  const [bioError, setBioError] = React.useState<string | null>(null);
+
   async function handleToggleHideLevel() {
     setHideLevelPending(true);
     const next = !hideLevel;
@@ -51,6 +57,24 @@ export function ProfileCard({
     const result = await toggleHideLevel(next);
     if (result.error) setHideLevel(!next); // revert on error
     setHideLevelPending(false);
+  }
+
+  async function handleBioSave() {
+    setBioPending(true);
+    setBioError(null);
+    const result = await updateBio(bioValue);
+    if (result.error) {
+      setBioError(result.error);
+    } else {
+      setBioEditing(false);
+    }
+    setBioPending(false);
+  }
+
+  function handleBioCancel() {
+    setBioValue(bioHeadline ?? "");
+    setBioEditing(false);
+    setBioError(null);
   }
 
   return (
@@ -92,11 +116,82 @@ export function ProfileCard({
 
       {/* Bio section */}
       <div className="bg-card rounded-[2rem] p-6 border border-border space-y-4">
-        {bioHeadline && (
-          <p className="text-sm text-foreground leading-relaxed italic">
-            &ldquo;{bioHeadline}&rdquo;
-          </p>
-        )}
+        {/* Bio headline — inline edit */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Bio
+            </span>
+            {!bioEditing && (
+              <button
+                onClick={() => setBioEditing(true)}
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors"
+              >
+                <Pencil className="w-2.5 h-2.5" />
+                {bioValue ? "Edit" : "Add"}
+              </button>
+            )}
+          </div>
+
+          {bioEditing ? (
+            <div className="space-y-2">
+              <textarea
+                value={bioValue}
+                onChange={(e) => setBioValue(e.target.value)}
+                maxLength={300}
+                rows={3}
+                placeholder="Write something about yourself…"
+                className="w-full text-sm bg-muted/50 border border-border rounded-xl px-3 py-2.5 text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-rose-500 focus:border-rose-500 transition"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[10px] text-muted-foreground">
+                  {bioValue.length}/300
+                </span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleBioCancel}
+                    disabled={bioPending}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-colors disabled:opacity-50"
+                  >
+                    <X className="w-3 h-3" />
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBioSave}
+                    disabled={bioPending}
+                    className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1.5 rounded-lg bg-rose-500 hover:bg-rose-600 text-white transition-colors disabled:opacity-50"
+                  >
+                    {bioPending ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Check className="w-3 h-3" />
+                    )}
+                    Save
+                  </button>
+                </div>
+              </div>
+              {bioError && (
+                <p className="text-[10px] text-red-500">{bioError}</p>
+              )}
+            </div>
+          ) : bioValue ? (
+            <p className="text-sm text-foreground leading-relaxed italic">
+              &ldquo;{bioValue}&rdquo;
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              No bio yet —{" "}
+              <button
+                onClick={() => setBioEditing(true)}
+                className="text-rose-500 hover:text-rose-600 font-semibold"
+              >
+                add one
+              </button>
+              .
+            </p>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-2">
           {intent && (
             <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-full">

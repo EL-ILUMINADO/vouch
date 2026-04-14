@@ -12,7 +12,9 @@ export async function scanImage(
 ): Promise<{ isSafe: boolean; reason?: string }> {
   if (!model) {
     await tf.ready();
-    model = await nsfwjs.load("MobileNetV2");
+    // MobileNetV2Mid gives better accuracy than the default MobileNetV2
+    // while remaining fast enough for in-browser use.
+    model = await nsfwjs.load("MobileNetV2Mid");
   }
 
   const objectUrl = URL.createObjectURL(file);
@@ -44,24 +46,37 @@ export async function scanImage(
         Sexy: `${(sexy * 100).toFixed(1)}%`,
       });
 
-      // Reject artwork/illustrations — real student photos should score low on Drawing.
-      // Anything ≥ 40% Drawing is almost certainly anime, manga, or cartoon art.
+      // Reject artwork/illustrations — real student photos should score low on
+      // Drawing. Anything ≥ 40% is almost certainly anime, manga, or cartoon art.
       if (drawing >= 0.4)
         return resolve({
           isSafe: false,
           reason: `Not a real photo — appears to be artwork or illustration (${(drawing * 100).toFixed(0)}% confidence)`,
         });
 
-      if (porn >= 0.03)
+      // Hard explicit checks — thresholds raised slightly from 3% to 6% to
+      // reduce false positives on legitimate photos while still catching clear
+      // violations.
+      if (porn >= 0.06)
         return resolve({
           isSafe: false,
           reason: `Explicit content detected (${(porn * 100).toFixed(0)}% confidence)`,
         });
-      if (hentai >= 0.03)
+      if (hentai >= 0.06)
         return resolve({
           isSafe: false,
           reason: `Explicit illustrated content detected (${(hentai * 100).toFixed(0)}% confidence)`,
         });
+
+      // Combined explicit signal: even if individual scores fall below the
+      // per-category threshold, a high aggregate still signals unsafe content.
+      const combinedExplicit = porn + hentai;
+      if (combinedExplicit >= 0.1)
+        return resolve({
+          isSafe: false,
+          reason: `Explicit content detected (combined score: ${(combinedExplicit * 100).toFixed(0)}%)`,
+        });
+
       if (sexy >= 0.3)
         return resolve({
           isSafe: false,

@@ -266,6 +266,24 @@ export async function toggleCodePublic(
   }
 }
 
+export async function updateBio(bio: string): Promise<{ error?: string }> {
+  const userId = await requireSession();
+
+  const trimmed = bio.trim();
+  if (trimmed.length > 300)
+    return { error: "Bio must be 300 characters or less." };
+
+  try {
+    await db
+      .update(users)
+      .set({ bio_headline: trimmed || null, updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    return {};
+  } catch {
+    return { error: "Failed to update bio. Please try again." };
+  }
+}
+
 export async function updateInterests(
   interests: string[],
 ): Promise<{ error?: string }> {
