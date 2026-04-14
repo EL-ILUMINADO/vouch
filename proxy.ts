@@ -20,8 +20,8 @@ const CSP = [
   // Cloudinary for user images/videos
   "img-src 'self' data: blob: https://res.cloudinary.com",
   "media-src 'self' blob: https://res.cloudinary.com",
-  // Pusher WebSocket & HTTP endpoints
-  "connect-src 'self' wss://ws-mt1.pusher.com https://sockjs-mt1.pusher.com https://api.pusherapp.com",
+  // Pusher WebSocket & HTTP endpoints + Cloudinary direct upload
+  "connect-src 'self' wss://ws-mt1.pusher.com https://sockjs-mt1.pusher.com https://api.pusherapp.com https://api.cloudinary.com",
   "font-src 'self'",
   // Prevent this page from being embedded anywhere (clickjacking)
   "frame-ancestors 'none'",
