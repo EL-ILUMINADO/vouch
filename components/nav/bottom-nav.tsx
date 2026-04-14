@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Map, User, Zap, MessageCircle, Heart } from "lucide-react";
@@ -20,12 +21,44 @@ export function BottomNav({
 }: BottomNavProps) {
   const pathname = usePathname();
 
+  // Hold counts in local state so we can zero them instantly on navigation
+  // without waiting for the server layout to re-render.
+  const [counts, setCounts] = React.useState({
+    likes: likesCount,
+    chats: chatsCount,
+    radar: radarRequestCount,
+  });
+
+  // When the server layout re-renders with fresh values, sync them in.
+  React.useEffect(() => {
+    setCounts({
+      likes: likesCount,
+      chats: chatsCount,
+      radar: radarRequestCount,
+    });
+  }, [likesCount, chatsCount, radarRequestCount]);
+
+  // Clear the relevant badge the instant the user arrives at the page
+  // that surfaces those notifications — no refresh needed.
+  React.useEffect(() => {
+    if (pathname.startsWith("/likes")) {
+      setCounts((c) => ({ ...c, likes: 0 }));
+    }
+    if (pathname.startsWith("/inbox")) {
+      setCounts((c) => ({ ...c, chats: 0 }));
+    }
+    // Radar pings are shown on /chats; also clear when inside a conversation.
+    if (pathname.startsWith("/chats") || pathname.startsWith("/uplink")) {
+      setCounts((c) => ({ ...c, radar: 0 }));
+    }
+  }, [pathname]);
+
   const navItems = [
     {
       name: "Radar",
       href: "/radar",
       icon: Map,
-      badge: radarRequestCount,
+      badge: counts.radar,
       dot: false,
     },
     { name: "Discover", href: "/discover", icon: Zap, badge: 0, dot: false },
@@ -33,14 +66,14 @@ export function BottomNav({
       name: "Likes",
       href: "/likes",
       icon: Heart,
-      badge: likesCount,
+      badge: counts.likes,
       dot: false,
     },
     {
       name: "Chats",
       href: "/chats",
       icon: MessageCircle,
-      badge: chatsCount,
+      badge: counts.chats,
       dot: false,
     },
     {

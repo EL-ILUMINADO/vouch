@@ -1,35 +1,50 @@
 "use client";
 
 import * as React from "react";
-import { sendMessage } from "./actions";
-import { Button } from "@/components/ui/button";
-import { Send, Heart } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { getPusherClient } from "@/lib/pusher-client";
-
-interface Message {
-  id: string;
-  content: string;
-  senderId: string;
-  createdAt: Date | string;
-}
+import { sendMessage, deleteMessage, editMessage } from "./actions";
+import { useChatMessages } from "./use-chat-messages";
+import { MessageBubble } from "./message-bubble";
+import { MessageContextMenu } from "./message-context-menu";
+import { ComposeBar } from "./compose-bar";
+import type { Message } from "./types";
 
 interface ChatInterfaceProps {
   initialMessages: Message[];
   conversationId: string;
   currentUserId: string;
+  otherUserName: string;
 }
 
 export function ChatInterface({
   initialMessages,
   conversationId,
   currentUserId,
+  otherUserName,
 }: ChatInterfaceProps) {
-  const [messages, setMessages] = React.useState<Message[]>(initialMessages);
-  const [inputValue, setInputValue] = React.useState("");
-  const scrollRef = React.useRef<HTMLDivElement>(null);
-  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const { messages, setMessages, isVisible } = useChatMessages(
+    initialMessages,
+    conversationId,
+    currentUserId,
+  );
 
+  const [replyingTo, setReplyingTo] = React.useState<{
+    id: string;
+    content: string;
+    senderId: string;
+  } | null>(null);
+
+  const [editingMessage, setEditingMessage] = React.useState<{
+    id: string;
+    content: string;
+  } | null>(null);
+
+  const [contextMenuMsgId, setContextMenuMsgId] = React.useState<string | null>(
+    null,
+  );
+
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+
+  // Scroll to bottom when messages change.
   React.useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
@@ -37,131 +52,156 @@ export function ChatInterface({
     });
   }, [messages]);
 
+  // Best-effort screenshot / print prevention.
   React.useEffect(() => {
-    const pusher = getPusherClient();
-    if (!pusher) return;
-
-    const channel = pusher.subscribe(conversationId);
-
-    channel.bind("new-message", (incomingMsg: Message) => {
-      if (incomingMsg.senderId === currentUserId) return;
-
-      setMessages((prev: Message[]) => {
-        if (prev.find((m: Message) => m.id === incomingMsg.id)) return prev;
-        return [
-          ...prev,
-          { ...incomingMsg, createdAt: new Date(incomingMsg.createdAt) },
-        ];
-      });
-    });
-
-    return () => {
-      pusher.unsubscribe(conversationId);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "p") e.preventDefault();
+      if (e.key === "PrintScreen")
+        navigator.clipboard?.writeText("").catch(() => {});
     };
-  }, [conversationId, currentUserId]);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
-  // Auto-grow textarea
-  const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInputValue(e.target.value);
-    const el = e.target;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  };
+  // ── Send / Edit
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputValue.trim()) return;
-
-    const content = inputValue;
-    setInputValue("");
-
-    // Reset textarea height
-    if (textareaRef.current) {
-      textareaRef.current.style.height = "auto";
+  const handleSend = async (content: string) => {
+    if (editingMessage) {
+      const { id } = editingMessage;
+      setEditingMessage(null);
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === id ? { ...m, content, editedAt: new Date() } : m,
+        ),
+      );
+      await editMessage(id, content);
+      return;
     }
 
-    const tempMessage = {
-      id: Math.random().toString(),
+    const replyId = replyingTo?.id ?? null;
+    const replyContent = replyingTo?.content ?? null;
+    const replySenderId = replyingTo?.senderId ?? null;
+
+    // Optimistic insert with a temporary id.
+    const temp: Message = {
+      id: `temp-${Math.random()}`,
       content,
       senderId: currentUserId,
       createdAt: new Date(),
+      replyToId: replyId,
+      replyToContent: replyContent,
+      replyToSenderId: replySenderId,
     };
 
-    setMessages((prev: Message[]) => [...prev, tempMessage]);
-    await sendMessage(conversationId, content);
+    setMessages((prev) => [...prev, temp]);
+    setReplyingTo(null);
+    await sendMessage(
+      conversationId,
+      content,
+      replyId,
+      replyContent,
+      replySenderId,
+    );
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend(e as unknown as React.FormEvent);
+  // ── Delete
+
+  const handleDelete = async (messageId: string, forEveryone: boolean) => {
+    setContextMenuMsgId(null);
+    const msg = messages.find((m) => m.id === messageId);
+    if (!msg) return;
+
+    const isSender = msg.senderId === currentUserId;
+
+    if (forEveryone) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, deletedAt: new Date() } : m,
+        ),
+      );
+    } else if (isSender) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, deletedForSender: true } : m,
+        ),
+      );
+    } else {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, deletedForReceiver: true } : m,
+        ),
+      );
     }
+
+    await deleteMessage(messageId, forEveryone);
   };
+
+  // ── Context-menu helpers
+
+  const contextMenuMsg =
+    contextMenuMsgId != null
+      ? (messages.find((m) => m.id === contextMenuMsgId) ?? null)
+      : null;
+
+  const openReply = (msg: Message) => {
+    setReplyingTo({ id: msg.id, content: msg.content, senderId: msg.senderId });
+    setContextMenuMsgId(null);
+  };
+
+  const openEdit = (msg: Message) => {
+    setEditingMessage({ id: msg.id, content: msg.content });
+    setContextMenuMsgId(null);
+  };
+
+  // ── Render
 
   return (
-    <div className="flex-1 flex flex-col bg-background overflow-hidden">
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((msg: Message) => {
-          const isMe = msg.senderId === currentUserId;
-          return (
-            <div
-              key={msg.id}
-              className={cn(
-                "flex w-full",
-                isMe ? "justify-end" : "justify-start",
-              )}
-            >
-              <div
-                className={cn(
-                  "max-w-[75%] px-4 py-2.5 rounded-2xl text-sm shadow-sm wrap-break-word",
-                  isMe
-                    ? "bg-rose-500 text-white rounded-br-none"
-                    : "bg-card text-card-foreground border border-border rounded-bl-none",
-                )}
-              >
-                {msg.content}
-                <div
-                  className={cn(
-                    "text-[9px] mt-1 opacity-60",
-                    isMe ? "text-rose-100" : "text-muted-foreground",
-                  )}
-                >
-                  {new Date(msg.createdAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+    <div
+      className="flex-1 flex flex-col bg-background overflow-hidden"
+      onContextMenu={(e) => e.preventDefault()}
+    >
+      {/* Message list */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto p-4 space-y-3 select-none"
+        style={{ WebkitUserSelect: "none" }}
+      >
+        {messages.filter(isVisible).map((msg) => (
+          <MessageBubble
+            key={msg.id}
+            msg={msg}
+            isMe={msg.senderId === currentUserId}
+            currentUserId={currentUserId}
+            otherUserName={otherUserName}
+            onLongPress={() => setContextMenuMsgId(msg.id)}
+            onContextMenu={() => setContextMenuMsgId(msg.id)}
+          />
+        ))}
       </div>
 
-      <footer className="px-4 py-3 bg-background border-t border-border shrink-0">
-        <form
-          onSubmit={handleSend}
-          className="flex gap-2 items-end max-w-4xl mx-auto"
-        >
-          <div className="relative flex-1">
-            <textarea
-              ref={textareaRef}
-              value={inputValue}
-              onChange={handleInput}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              rows={1}
-              className="w-full resize-none overflow-hidden min-h-[44px] max-h-40 pl-4 pr-10 py-2.5 rounded-2xl border border-border bg-muted focus:bg-card focus:outline-none focus:ring-2 focus:ring-rose-400/20 text-sm leading-relaxed"
-            />
-            <Heart className="absolute right-3 bottom-3 w-4 h-4 text-rose-400 cursor-pointer hover:scale-110 transition-transform" />
-          </div>
-          <Button
-            type="submit"
-            className="h-11 w-11 rounded-full bg-rose-500 hover:bg-rose-600 shadow-md shadow-rose-200 dark:shadow-none shrink-0 active:scale-95 mb-0.5"
-          >
-            <Send className="w-4 h-4 text-white" />
-          </Button>
-        </form>
-      </footer>
+      {/* Compose footer */}
+      <ComposeBar
+        replyingTo={replyingTo}
+        editInitialContent={editingMessage?.content}
+        currentUserId={currentUserId}
+        otherUserName={otherUserName}
+        onSend={handleSend}
+        onCancelReply={() => setReplyingTo(null)}
+        onCancelEdit={() => setEditingMessage(null)}
+      />
+
+      {/* Context menu action sheet */}
+      {contextMenuMsg && (
+        <MessageContextMenu
+          message={contextMenuMsg}
+          isOwn={contextMenuMsg.senderId === currentUserId}
+          onClose={() => setContextMenuMsgId(null)}
+          onReply={() => openReply(contextMenuMsg)}
+          onEdit={() => openEdit(contextMenuMsg)}
+          onDeleteForMe={() => handleDelete(contextMenuMsg.id, false)}
+          onDeleteForEveryone={() => handleDelete(contextMenuMsg.id, true)}
+        />
+      )}
     </div>
   );
 }

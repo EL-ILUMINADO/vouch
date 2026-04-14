@@ -8,7 +8,13 @@ import { cookies } from "next/headers";
 import { eq, desc } from "drizzle-orm";
 import { recordLikeAndCheckMatch } from "@/lib/match";
 
-export async function sendMessage(conversationId: string, content: string) {
+export async function sendMessage(
+  conversationId: string,
+  content: string,
+  replyToId?: string | null,
+  replyToContent?: string | null,
+  replyToSenderId?: string | null,
+) {
   const cookieStore = await cookies();
   const token = cookieStore.get("vouch_session")?.value;
   if (!token) return { error: "Authentication required." };
@@ -47,6 +53,9 @@ export async function sendMessage(conversationId: string, content: string) {
         conversationId,
         senderId: session.userId as string,
         content,
+        replyToId: replyToId ?? null,
+        replyToContent: replyToContent ?? null,
+        replyToSenderId: replyToSenderId ?? null,
       })
       .returning();
 
@@ -62,6 +71,119 @@ export async function sendMessage(conversationId: string, content: string) {
   } catch {
     return { error: "Broadcast failed." };
   }
+}
+
+export async function deleteMessage(
+  messageId: string,
+  deleteForEveryone: boolean,
+) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) return { error: "Authentication required." };
+
+  const session = await decrypt(token);
+  if (!session) return { error: "Invalid session." };
+
+  const userId = session.userId as string;
+
+  // Fetch the message and verify the user is a participant in the conversation
+  const [msg] = await db
+    .select({
+      id: messages.id,
+      senderId: messages.senderId,
+      conversationId: messages.conversationId,
+    })
+    .from(messages)
+    .where(eq(messages.id, messageId))
+    .limit(1);
+
+  if (!msg) return { error: "Message not found." };
+
+  // Verify this user is a participant in the conversation
+  const [convo] = await db
+    .select({
+      userOneId: conversations.userOneId,
+      userTwoId: conversations.userTwoId,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, msg.conversationId))
+    .limit(1);
+
+  if (!convo || (convo.userOneId !== userId && convo.userTwoId !== userId)) {
+    return { error: "Not authorized." };
+  }
+
+  const isSender = msg.senderId === userId;
+
+  if (deleteForEveryone) {
+    await db
+      .update(messages)
+      .set({ deletedAt: new Date() })
+      .where(eq(messages.id, messageId));
+
+    await pusherServer.trigger(msg.conversationId, "message-deleted", {
+      messageId,
+      deleteForEveryone: true,
+      deletedBySender: isSender,
+    });
+  } else {
+    // Delete for self only
+    if (isSender) {
+      await db
+        .update(messages)
+        .set({ deletedForSender: true })
+        .where(eq(messages.id, messageId));
+    } else {
+      await db
+        .update(messages)
+        .set({ deletedForReceiver: true })
+        .where(eq(messages.id, messageId));
+    }
+    // No need to notify the other party for self-only deletion
+  }
+
+  return { success: true };
+}
+
+export async function editMessage(messageId: string, newContent: string) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) return { error: "Authentication required." };
+
+  const session = await decrypt(token);
+  if (!session) return { error: "Invalid session." };
+
+  const userId = session.userId as string;
+
+  const [msg] = await db
+    .select({
+      senderId: messages.senderId,
+      conversationId: messages.conversationId,
+      deletedAt: messages.deletedAt,
+    })
+    .from(messages)
+    .where(eq(messages.id, messageId))
+    .limit(1);
+
+  if (!msg) return { error: "Message not found." };
+  if (msg.senderId !== userId)
+    return { error: "Can only edit your own messages." };
+  if (msg.deletedAt) return { error: "Cannot edit a deleted message." };
+
+  const now = new Date();
+
+  await db
+    .update(messages)
+    .set({ content: newContent.trim(), editedAt: now })
+    .where(eq(messages.id, messageId));
+
+  await pusherServer.trigger(msg.conversationId, "message-edited", {
+    messageId,
+    newContent: newContent.trim(),
+    editedAt: now.toISOString(),
+  });
+
+  return { success: true };
 }
 
 /**

@@ -156,6 +156,17 @@ export const messages = pgTable("messages", {
     .references(() => users.id)
     .notNull(),
   content: text("content").notNull(),
+  // Reply threading: snapshot the replied-to message so it persists even if deleted
+  replyToId: uuid("reply_to_id"),
+  replyToContent: text("reply_to_content"),
+  replyToSenderId: uuid("reply_to_sender_id"),
+  // Edit tracking
+  editedAt: timestamp("edited_at"),
+  // Soft-delete for everyone
+  deletedAt: timestamp("deleted_at"),
+  // Soft-delete for one side only
+  deletedForSender: boolean("deleted_for_sender").default(false).notNull(),
+  deletedForReceiver: boolean("deleted_for_receiver").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
