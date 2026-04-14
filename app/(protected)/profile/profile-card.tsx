@@ -2,6 +2,8 @@
 /* eslint-disable @next/next/no-img-element */
 
 import * as React from "react";
+import Link from "next/link";
+import { Pencil } from "lucide-react";
 import { ProfilePhotos } from "./profile-photos";
 import { toggleHideLevel } from "./actions";
 
@@ -89,31 +91,43 @@ export function ProfileCard({
       </div>
 
       {/* Bio section */}
-      {(bioHeadline || intent || interests.length > 0) && (
-        <div className="bg-card rounded-[2rem] p-6 border border-border space-y-4">
-          {bioHeadline && (
-            <p className="text-sm text-foreground leading-relaxed italic">
-              &ldquo;{bioHeadline}&rdquo;
-            </p>
+      <div className="bg-card rounded-[2rem] p-6 border border-border space-y-4">
+        {bioHeadline && (
+          <p className="text-sm text-foreground leading-relaxed italic">
+            &ldquo;{bioHeadline}&rdquo;
+          </p>
+        )}
+        <div className="flex flex-wrap gap-2">
+          {intent && (
+            <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-full">
+              {intent}
+            </span>
           )}
-          <div className="flex flex-wrap gap-2">
-            {intent && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-full">
-                {intent}
-              </span>
-            )}
-            {socialEnergy && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                {socialEnergy}
-              </span>
-            )}
-            {energyVibe && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                {energyVibe}
-              </span>
-            )}
+          {socialEnergy && (
+            <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
+              {socialEnergy}
+            </span>
+          )}
+          {energyVibe && (
+            <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
+              {energyVibe}
+            </span>
+          )}
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+              Interests
+            </span>
+            <Link
+              href="/profile/edit-interests"
+              className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors"
+            >
+              <Pencil className="w-2.5 h-2.5" />
+              Edit
+            </Link>
           </div>
-          {interests.length > 0 && (
+          {interests.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
               {interests.map((tag) => (
                 <span
@@ -124,9 +138,20 @@ export function ProfileCard({
                 </span>
               ))}
             </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">
+              No interests yet —{" "}
+              <Link
+                href="/profile/edit-interests"
+                className="text-rose-500 hover:text-rose-600 font-semibold"
+              >
+                add some
+              </Link>{" "}
+              to get better matches.
+            </p>
           )}
         </div>
-      )}
+      </div>
 
       {/* Privacy settings */}
       <div className="bg-card rounded-3xl border border-border shadow-sm p-4 flex justify-between items-center">
