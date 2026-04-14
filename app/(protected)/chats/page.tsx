@@ -4,6 +4,7 @@ import {
   users,
   platformMessages,
   radarRequests,
+  messages,
 } from "@/db/schema";
 import { eq, or, desc, sql, and, ne, inArray } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -32,6 +33,7 @@ export default async function ChatsPage() {
           id: users.id,
           name: users.name,
           department: users.department,
+          profileImage: users.profileImage,
         },
       })
       .from(conversations)
@@ -122,6 +124,49 @@ export default async function ChatsPage() {
       });
   }
 
+  // Fetch the latest message preview for each active conversation.
+  const convIds = userConversations.map((c) => c.id);
+  type LastMsg = { content: string; senderId: string; deletedAt: Date | null };
+  const lastMsgMap: Record<string, LastMsg> = {};
+
+  if (convIds.length > 0) {
+    const latestPerConvo = db
+      .select({
+        conversationId: messages.conversationId,
+        maxCreatedAt: sql<Date>`max(${messages.createdAt})`.as(
+          "max_created_at",
+        ),
+      })
+      .from(messages)
+      .where(inArray(messages.conversationId, convIds))
+      .groupBy(messages.conversationId)
+      .as("latest_per_convo");
+
+    const lastMsgs = await db
+      .select({
+        conversationId: messages.conversationId,
+        content: messages.content,
+        senderId: messages.senderId,
+        deletedAt: messages.deletedAt,
+      })
+      .from(messages)
+      .innerJoin(
+        latestPerConvo,
+        and(
+          eq(messages.conversationId, latestPerConvo.conversationId),
+          eq(messages.createdAt, latestPerConvo.maxCreatedAt),
+        ),
+      );
+
+    for (const msg of lastMsgs) {
+      lastMsgMap[msg.conversationId] = {
+        content: msg.content,
+        senderId: msg.senderId,
+        deletedAt: msg.deletedAt,
+      };
+    }
+  }
+
   const totalConnections =
     userConversations.length + (latestPlatformMsg ? 1 : 0);
 
@@ -191,30 +236,53 @@ export default async function ChatsPage() {
             <p className="text-sm font-medium">No active handshakes yet.</p>
           </div>
         ) : (
-          userConversations.map((convo) => (
-            <Link
-              key={convo.id}
-              href={`/uplink/${convo.id}`}
-              className="flex items-center gap-4 p-4 rounded-[1.5rem] hover:bg-accent transition-all active:scale-[0.98] group"
-            >
-              <div className="w-14 h-14 rounded-full bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold text-xl border-2 border-transparent group-hover:border-rose-200 dark:group-hover:border-rose-800 transition-all">
-                {convo.otherUser.name[0]}
-              </div>
-              <div className="flex-1 border-b border-border pb-4 group-last:border-0">
-                <div className="flex justify-between items-baseline">
-                  <h3 className="font-bold text-foreground">
-                    {convo.otherUser.name}
-                  </h3>
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tighter">
-                    {new Date(convo.updatedAt).toLocaleDateString()}
-                  </span>
+          userConversations.map((convo) => {
+            const lastMsg = lastMsgMap[convo.id];
+            const isMyMsg = lastMsg?.senderId === currentUserId;
+
+            let preview = "Say hi 👋";
+            if (lastMsg) {
+              if (lastMsg.deletedAt) {
+                preview = "This message was deleted";
+              } else {
+                preview = `${isMyMsg ? "You: " : ""}${lastMsg.content}`;
+              }
+            }
+
+            return (
+              <Link
+                key={convo.id}
+                href={`/uplink/${convo.id}`}
+                className="flex items-center gap-4 p-4 rounded-[1.5rem] hover:bg-accent transition-all active:scale-[0.98] group"
+              >
+                <div className="w-14 h-14 rounded-full overflow-hidden bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-500 dark:text-rose-400 font-bold text-xl border-2 border-transparent group-hover:border-rose-200 dark:group-hover:border-rose-800 transition-all shrink-0">
+                  {convo.otherUser.profileImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={convo.otherUser.profileImage}
+                      alt={convo.otherUser.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    convo.otherUser.name[0]
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground font-medium truncate mt-0.5">
-                  {convo.otherUser.department} • Tap to resume chatting.
-                </p>
-              </div>
-            </Link>
-          ))
+                <div className="flex-1 min-w-0 border-b border-border pb-4 group-last:border-0">
+                  <div className="flex justify-between items-baseline">
+                    <h3 className="font-bold text-foreground">
+                      {convo.otherUser.name}
+                    </h3>
+                    <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tighter shrink-0">
+                      {new Date(convo.updatedAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground font-medium truncate mt-0.5">
+                    {preview}
+                  </p>
+                </div>
+              </Link>
+            );
+          })
         )}
       </div>
     </main>

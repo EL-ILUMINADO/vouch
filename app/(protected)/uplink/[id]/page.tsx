@@ -182,6 +182,7 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
           initialMessages={JSON.parse(JSON.stringify(history))}
           conversationId={conversationId}
           currentUserId={currentUserId}
+          otherUserName={otherUser.name}
         />
       )}
     </main>
