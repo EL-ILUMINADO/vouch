@@ -327,6 +327,53 @@ export default function PhotosPage() {
         )}
       </div>
 
+      {/* Scanner guidance */}
+      {status === "idle" && (
+        <div className="w-full bg-muted/40 border border-border rounded-2xl p-4 mb-6 space-y-3">
+          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+            What passes the scan
+          </p>
+          <div className="space-y-1.5">
+            {[
+              { icon: "✓", text: "Clear, well-lit photos of your face" },
+              {
+                icon: "✓",
+                text: "Casual or dressed-up — indoor or outdoor shots",
+              },
+              { icon: "✓", text: "Group photos where you're clearly visible" },
+            ].map(({ icon, text }) => (
+              <p
+                key={text}
+                className="text-xs text-foreground flex items-start gap-2"
+              >
+                <span className="text-emerald-500 font-bold shrink-0">
+                  {icon}
+                </span>
+                {text}
+              </p>
+            ))}
+          </div>
+          <div className="border-t border-border pt-3 space-y-1.5">
+            {[
+              {
+                icon: "✗",
+                text: "Illustrations, anime, cartoons, or drawings",
+              },
+              { icon: "✗", text: "Suggestive or explicit content" },
+              { icon: "✗", text: "Heavily filtered or AI-generated images" },
+            ].map(({ icon, text }) => (
+              <p
+                key={text}
+                className="text-xs text-muted-foreground flex items-start gap-2"
+              >
+                <span className="text-red-500 font-bold shrink-0">{icon}</span>
+                {text}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="w-full space-y-6">
         {status === "scanning" && (
           <div className="space-y-3 animate-in fade-in slide-in-from-bottom-4">
