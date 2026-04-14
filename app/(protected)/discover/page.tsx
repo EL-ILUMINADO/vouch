@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { db } from "@/db";
-import { users, likes, conversations } from "@/db/schema";
+import { users, likes, conversations, blocks } from "@/db/schema";
+
+export const metadata: Metadata = {
+  title: "Discover",
+  description: "Swipe through verified campus profiles and find your match.",
+};
 import { eq, not, or, inArray, and } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
@@ -18,7 +24,7 @@ export default async function DiscoverPage() {
   // Collect IDs to exclude from the swipe stack:
   // 1. Users the current user has already liked (pending or rejected — no point showing them again)
   // 2. Users with whom there is already an active conversation
-  const [alreadyLiked, conversationPartners, currentUserRows] =
+  const [alreadyLiked, conversationPartners, currentUserRows, blockedRows] =
     await Promise.all([
       db
         .select({ likedUserId: likes.likedUserId })
@@ -45,6 +51,17 @@ export default async function DiscoverPage() {
         .from(users)
         .where(eq(users.id, currentUserId))
         .limit(1),
+
+      // Blocks in both directions.
+      db
+        .select({ blockerId: blocks.blockerId, blockedId: blocks.blockedId })
+        .from(blocks)
+        .where(
+          or(
+            eq(blocks.blockerId, currentUserId),
+            eq(blocks.blockedId, currentUserId),
+          ),
+        ),
     ]);
 
   const excludedIds = new Set<string>([currentUserId]);
@@ -52,6 +69,10 @@ export default async function DiscoverPage() {
   for (const { userOneId, userTwoId } of conversationPartners) {
     excludedIds.add(userOneId);
     excludedIds.add(userTwoId);
+  }
+  for (const { blockerId, blockedId } of blockedRows) {
+    excludedIds.add(blockerId);
+    excludedIds.add(blockedId);
   }
 
   const excludedArray = Array.from(excludedIds);

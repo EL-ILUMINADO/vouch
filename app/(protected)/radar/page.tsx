@@ -1,6 +1,12 @@
+import type { Metadata } from "next";
 import { db } from "@/db";
-import { users, conversations, radarRequests } from "@/db/schema";
-import { eq, and, ne, or, sql, inArray, isNull } from "drizzle-orm";
+import { users, conversations, radarRequests, blocks } from "@/db/schema";
+
+export const metadata: Metadata = {
+  title: "Radar",
+  description: "See verified students near you on campus in real-time.",
+};
+import { eq, and, ne, or, sql, inArray, isNull, notExists } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -112,6 +118,7 @@ export default async function RadarPage() {
       department: users.department,
       level: users.level,
       hideLevel: users.hideLevel,
+      lastActiveAt: users.lastActiveAt,
       distance: distanceSql.as("distance"),
     })
     .from(users)
@@ -122,11 +129,25 @@ export default async function RadarPage() {
         eq(users.isRadarVisible, true),
         ne(users.id, currentUser.id),
         // Exclude users who have explicitly declared "Short-term" intent.
-        // Radar dots carry no intent label, so recipients can't give informed
-        // consent to who's pinging them. Short-term seekers can still connect
-        // via Discover where their intent is visible on the card.
-        // Users with intent = null (not yet set) are still shown.
         or(ne(users.intent, "Short-term"), isNull(users.intent)),
+        // Exclude blocked users (in either direction).
+        notExists(
+          db
+            .select({ id: blocks.id })
+            .from(blocks)
+            .where(
+              or(
+                and(
+                  eq(blocks.blockerId, currentUser.id),
+                  eq(blocks.blockedId, users.id),
+                ),
+                and(
+                  eq(blocks.blockerId, users.id),
+                  eq(blocks.blockedId, currentUser.id),
+                ),
+              ),
+            ),
+        ),
         sql`${users.latitude} IS NOT NULL`,
         sql`${users.longitude} IS NOT NULL`,
         sql`${distanceSql} >= ${RADAR_MIN_KM}`,

@@ -5,6 +5,7 @@ import { RadarSignalItem } from "./radar-signal";
 import { SignalDetails } from "./signal-details";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { RadarSignal, RadarRequestState } from "@/types/radar";
+import { getPresenceLabel } from "@/lib/utils/presence";
 
 interface RadarDisplayProps {
   signals: RadarSignal[];
@@ -185,6 +186,25 @@ export function RadarDisplay({
                       <p className="text-[10px] text-muted-foreground font-black truncate">
                         {signal.department}
                       </p>
+                      {(() => {
+                        const { isOnline, label } = getPresenceLabel(
+                          signal.lastActiveAt ?? null,
+                        );
+                        return (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                                isOnline
+                                  ? "bg-green-500"
+                                  : "bg-muted-foreground/40"
+                              }`}
+                            />
+                            <span className="text-[10px] text-muted-foreground">
+                              {label}
+                            </span>
+                          </div>
+                        );
+                      })()}
                       {state.type === "received" && (
                         <p className="text-[10px] text-rose-500 font-bold mt-0.5">
                           Pinged you!

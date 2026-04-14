@@ -7,6 +7,7 @@ import {
   messages,
   vouchCodes,
   reports,
+  pushSubscriptions,
 } from "@/db/schema";
 import { eq, or, and } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
@@ -448,5 +449,39 @@ export async function updateOnboardingAnswers(
     return {};
   } catch {
     return { error: "Failed to update. Please try again." };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Push Subscriptions
+// ---------------------------------------------------------------------------
+
+export async function savePushSubscription(subscription: {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}): Promise<{ success: true } | { error: string }> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) return { error: "Not authenticated." };
+
+  const session = await decrypt(token);
+  if (!session) return { error: "Invalid session." };
+
+  const userId = session.userId as string;
+
+  try {
+    await db
+      .insert(pushSubscriptions)
+      .values({
+        userId,
+        endpoint: subscription.endpoint,
+        p256dh: subscription.keys.p256dh,
+        auth: subscription.keys.auth,
+      })
+      .onConflictDoNothing();
+
+    return { success: true };
+  } catch {
+    return { error: "Failed to save subscription." };
   }
 }

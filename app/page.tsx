@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -33,10 +34,14 @@ export default function LandingPage() {
       {/* Top nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5">
         <div className="flex items-center gap-2">
-          <span className="text-2xl font-black tracking-tight">
-            vouch
-            <span className="text-rose-500">.</span>
-          </span>
+          <Image
+            src="/logo.png"
+            alt="Vouch"
+            width={36}
+            height={36}
+            className="rounded-xl"
+            priority
+          />
           <span className="text-[9px] font-black uppercase tracking-widest bg-rose-100 dark:bg-rose-500/20 text-rose-500 px-2 py-0.5 rounded-full">
             Beta
           </span>

@@ -7,6 +7,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
+import { sendPushToUser } from "@/lib/push";
 
 async function getVerifiedSession() {
   const cookieStore = await cookies();
@@ -110,6 +111,20 @@ export async function sendRadarPing(targetUserId: string) {
       targetUserId,
     );
 
+    // Notify the other user via Web Push (fire-and-forget).
+    const [currentUser] = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, currentUserId))
+      .limit(1);
+
+    sendPushToUser(
+      targetUserId,
+      "New Match on Radar!",
+      `${currentUser?.name ?? "Someone"} connected with you.`,
+      `/uplink/${conversationId}`,
+    ).catch(() => {});
+
     revalidatePath("/radar");
     revalidatePath("/chats");
     redirect(`/uplink/${conversationId}`);
@@ -176,6 +191,21 @@ export async function respondToRadarRequest(
       request.senderId,
       currentUserId,
     );
+
+    // Notify the original sender that their request was accepted.
+    const [acceptor] = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, currentUserId))
+      .limit(1);
+
+    sendPushToUser(
+      request.senderId,
+      "Radar Request Accepted!",
+      `${acceptor?.name ?? "Someone"} accepted your connection.`,
+      `/uplink/${conversationId}`,
+    ).catch(() => {});
+
     redirect(`/uplink/${conversationId}`);
   }
 }

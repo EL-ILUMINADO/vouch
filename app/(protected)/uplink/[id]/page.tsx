@@ -1,14 +1,18 @@
 import { db } from "@/db";
 import { conversations, messages, users } from "@/db/schema";
-import { eq, asc, desc } from "drizzle-orm";
+import { eq, asc, desc, count } from "drizzle-orm";
+
+const PAGE_SIZE = 20;
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ChatInterface } from "./chat-interface";
 import { ReportDialog } from "@/components/chat/report-dialog";
 import { ClosedChatBanner } from "./closed-chat-banner";
+import { BlockButton } from "./block-button";
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import { getPresenceLabel } from "@/lib/utils/presence";
 
 export const dynamic = "force-dynamic";
 
@@ -85,16 +89,35 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
     convo.userOneId === currentUserId ? convo.userTwoId : convo.userOneId;
 
   const [otherUser] = await db
-    .select()
+    .select({
+      id: users.id,
+      name: users.name,
+      profileImage: users.profileImage,
+      department: users.department,
+      level: users.level,
+      lastActiveAt: users.lastActiveAt,
+    })
     .from(users)
     .where(eq(users.id, otherUserId))
     .limit(1);
 
-  const history = await db
+  // Fetch last PAGE_SIZE messages for the initial view.
+  const lastMessages = await db
     .select()
     .from(messages)
     .where(eq(messages.conversationId, conversationId))
-    .orderBy(asc(messages.createdAt));
+    .orderBy(desc(messages.createdAt))
+    .limit(PAGE_SIZE);
+
+  const history = lastMessages.reverse();
+
+  // Check if there are older messages beyond the initial page.
+  const [{ value: totalCount }] = await db
+    .select({ value: count() })
+    .from(messages)
+    .where(eq(messages.conversationId, conversationId));
+
+  const hasMore = totalCount > PAGE_SIZE;
 
   const isClosed = convo.status === "closed_inactive";
 
@@ -129,9 +152,23 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
           <h2 className="text-base font-bold text-foreground tracking-tight">
             {otherUser.name}
           </h2>
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider truncate">
-            {otherUser.department} • {otherUser.level}
-          </p>
+          {(() => {
+            const { isOnline, label } = getPresenceLabel(
+              otherUser.lastActiveAt,
+            );
+            return (
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-1.5 h-1.5 rounded-full shrink-0 ${
+                    isOnline ? "bg-green-500" : "bg-muted-foreground/40"
+                  }`}
+                />
+                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider truncate">
+                  {isOnline ? "Online" : label}
+                </p>
+              </div>
+            );
+          })()}
         </div>
         {isClosed && (
           <span className="text-[9px] font-black uppercase tracking-widest bg-muted text-muted-foreground px-2 py-1 rounded-full">
@@ -143,6 +180,13 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
           reportedUserId={otherUser.id}
           reportedUserName={otherUser.name}
         />
+        {!isClosed && (
+          <BlockButton
+            conversationId={conversationId}
+            targetId={otherUser.id}
+            targetName={otherUser.name}
+          />
+        )}
       </header>
 
       {isClosed ? (
@@ -183,6 +227,7 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
           conversationId={conversationId}
           currentUserId={currentUserId}
           otherUserName={otherUser.name}
+          hasMore={hasMore}
         />
       )}
     </main>

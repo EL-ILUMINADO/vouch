@@ -99,6 +99,9 @@ export const users = pgTable("users", {
   isBanned: boolean("is_banned").default(false).notNull(),
   warningCount: integer("warning_count").default(0).notNull(),
 
+  // Presence
+  lastActiveAt: timestamp("last_active_at"),
+
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -225,6 +228,39 @@ export const radarRequests = pgTable("radar_requests", {
   status: radarRequestStatusEnum("status").default("pending").notNull(),
   // Requests expire after 24h if not responded to
   expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ─── Blocks ──────────────────────────────────────────────────────────────────
+export const blocks = pgTable(
+  "blocks",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    blockerId: uuid("blocker_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    blockedId: uuid("blocked_id")
+      .references(() => users.id, { onDelete: "cascade" })
+      .notNull(),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+  },
+  (table) => [
+    unique("blocks_blocker_blocked_unique").on(
+      table.blockerId,
+      table.blockedId,
+    ),
+  ],
+);
+
+// ─── Push Subscriptions ───────────────────────────────────────────────────────
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" })
+    .notNull(),
+  endpoint: text("endpoint").notNull(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
