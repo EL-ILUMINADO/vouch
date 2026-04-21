@@ -420,6 +420,11 @@ export default function PhotosPage() {
                 Remove the flagged photo{scanErrors.length > 1 ? "s" : ""} and
                 try again.
               </p>
+              <p className="text-[10px] text-muted-foreground/70 pt-1 leading-relaxed">
+                If your photos are 100% within our guidelines and you&apos;re
+                still getting flagged, refresh the page and re-upload. If that
+                doesn&apos;t work, try uploading different photos.
+              </p>
             </div>
             <button
               onClick={() => {

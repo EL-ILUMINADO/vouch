@@ -13,7 +13,7 @@ import {
 import { decrypt } from "@/lib/auth";
 import { pusherServer } from "@/lib/pusher-server";
 import { cookies } from "next/headers";
-import { eq, desc, or, and, lt, asc } from "drizzle-orm";
+import { eq, desc, or, and, lt } from "drizzle-orm";
 import { recordLikeAndCheckMatch } from "@/lib/match";
 import { revalidatePath } from "next/cache";
 import { sendPushToUser } from "@/lib/push";

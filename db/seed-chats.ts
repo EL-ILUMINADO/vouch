@@ -1,6 +1,6 @@
 // db/seed-chats.ts — Demo conversation seed for testing reports
 import { db } from "@/db";
-import { users, conversations, messages, vouchCodes } from "@/db/schema";
+import { users, conversations, messages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 

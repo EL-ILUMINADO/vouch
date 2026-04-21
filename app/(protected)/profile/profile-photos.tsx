@@ -313,6 +313,11 @@ export function ProfilePhotos({
             <p className="text-[10px] text-red-400 mt-0.5 leading-relaxed">
               {addError}
             </p>
+            <p className="text-[10px] text-muted-foreground mt-2 leading-relaxed">
+              If your photo meets our guidelines and you&apos;re still seeing
+              this, refresh the page and re-upload. If that doesn&apos;t help,
+              try uploading a different photo.
+            </p>
           </div>
           <button
             onClick={() => setAddError(null)}

@@ -175,7 +175,7 @@ export function LivenessCapture({
                   <p className="font-black text-foreground text-lg">
                     Tape received.
                   </p>
-                  <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px] mx-auto">
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-65 mx-auto">
                     Our team will review your clip within{" "}
                     <span className="font-bold text-foreground">
                       6–24 hours

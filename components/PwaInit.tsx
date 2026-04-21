@@ -4,13 +4,26 @@ import * as React from "react";
 import Image from "next/image";
 import { X } from "lucide-react";
 
-const DISMISS_KEY = "vouch_pwa_banner_dismissed";
+const DISMISS_KEY = "vouch_pwa_dismissed_at";
+const SNOOZE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+function isDismissedRecently(): boolean {
+  try {
+    const raw = localStorage.getItem(DISMISS_KEY);
+    if (!raw) return false;
+    return Date.now() - parseInt(raw) < SNOOZE_MS;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Mounted in the root layout.
  * 1. Registers /sw.js so caching + push work on every page.
  * 2. Captures the browser's beforeinstallprompt event.
  * 3. Shows a dismissable "Add to Home Screen" banner when installable.
+ *    Dismissed state persists for 30 days via localStorage so the banner
+ *    doesn't reappear on every route change or new session.
  */
 export function PwaInit() {
   const [promptEvent, setPromptEvent] =
@@ -18,23 +31,27 @@ export function PwaInit() {
   const [showBanner, setShowBanner] = React.useState(false);
 
   React.useEffect(() => {
-    // Register the service worker.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .catch(() => {});
     }
 
-    // Already running as a standalone PWA — no banner needed.
     if (window.matchMedia("(display-mode: standalone)").matches) return;
-
-    // Already dismissed this session.
-    if (sessionStorage.getItem(DISMISS_KEY)) return;
+    if (isDismissedRecently()) return;
 
     const handler = (e: Event) => {
+      if (isDismissedRecently()) return;
+
       e.preventDefault();
       setPromptEvent(e as BeforeInstallPromptEvent);
-      setShowBanner(true);
+
+      // Remove immediately — beforeinstallprompt re-fires on every client-side
+      // navigation in some browsers, so we self-destruct after the first capture
+      // to prevent the banner queuing up on every route change.
+      window.removeEventListener("beforeinstallprompt", handler);
+
+      setTimeout(() => setShowBanner(true), 3000);
     };
 
     window.addEventListener("beforeinstallprompt", handler);
@@ -49,7 +66,9 @@ export function PwaInit() {
   };
 
   const handleDismiss = () => {
-    sessionStorage.setItem(DISMISS_KEY, "1");
+    try {
+      localStorage.setItem(DISMISS_KEY, Date.now().toString());
+    } catch {}
     setShowBanner(false);
   };
 

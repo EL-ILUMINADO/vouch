@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { Radio, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { respondToRadarRequest } from "@/app/(protected)/radar/actions";
@@ -20,7 +19,6 @@ export function RadarRequestCard({
 }: {
   request: PendingRadarRequest;
 }) {
-  const router = useRouter();
   const [state, setState] = React.useState<"idle" | "busy" | "done">("idle");
 
   const handle = async (action: "accepted" | "declined") => {
