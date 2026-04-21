@@ -5,6 +5,9 @@ import ws from "ws";
 
 if (typeof window === "undefined") {
   neonConfig.webSocketConstructor = ws;
+  // Route pool queries over HTTP instead of WebSocket.
+  // Avoids ECONNRESET on idle connections in serverless environments.
+  neonConfig.poolQueryViaFetch = true;
 }
 
 const connectionString = process.env.DATABASE_URL;

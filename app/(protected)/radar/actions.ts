@@ -7,7 +7,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
-import { sendPushToUser } from "@/lib/push";
+import { notify } from "@/lib/notifications";
 
 async function getVerifiedSession() {
   const cookieStore = await cookies();
@@ -118,12 +118,14 @@ export async function sendRadarPing(targetUserId: string) {
       .where(eq(users.id, currentUserId))
       .limit(1);
 
-    sendPushToUser(
-      targetUserId,
-      "New Match on Radar!",
-      `${currentUser?.name ?? "Someone"} connected with you.`,
-      `/uplink/${conversationId}`,
-    ).catch(() => {});
+    notify({
+      userId: targetUserId,
+      type: "radar_accepted",
+      title: "New Match on Radar! 📡",
+      body: `${currentUser?.name ?? "Someone"} connected with you.`,
+      actionUrl: `/uplink/${conversationId}`,
+      actorId: currentUserId,
+    }).catch(() => {});
 
     revalidatePath("/radar");
     revalidatePath("/chats");
@@ -138,6 +140,22 @@ export async function sendRadarPing(targetUserId: string) {
     status: "pending",
     expiresAt,
   });
+
+  // Notify the receiver of the incoming ping.
+  const [sender] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, currentUserId))
+    .limit(1);
+
+  notify({
+    userId: targetUserId,
+    type: "radar_request",
+    title: "New Radar Ping! 📡",
+    body: `${sender?.name ?? "Someone"} pinged you on Radar.`,
+    actionUrl: "/radar",
+    actorId: currentUserId,
+  }).catch(() => {});
 
   revalidatePath("/radar");
   // No redirect — the caller shows "Request Sent" state.
@@ -199,12 +217,14 @@ export async function respondToRadarRequest(
       .where(eq(users.id, currentUserId))
       .limit(1);
 
-    sendPushToUser(
-      request.senderId,
-      "Radar Request Accepted!",
-      `${acceptor?.name ?? "Someone"} accepted your connection.`,
-      `/uplink/${conversationId}`,
-    ).catch(() => {});
+    notify({
+      userId: request.senderId,
+      type: "radar_accepted",
+      title: "Radar Request Accepted! 📡",
+      body: `${acceptor?.name ?? "Someone"} accepted your connection.`,
+      actionUrl: `/uplink/${conversationId}`,
+      actorId: currentUserId,
+    }).catch(() => {});
 
     redirect(`/uplink/${conversationId}`);
   }

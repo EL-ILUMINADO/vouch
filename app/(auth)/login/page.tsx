@@ -31,6 +31,7 @@ export default function LoginPage() {
               width={44}
               height={44}
               className="rounded-2xl shadow-sm"
+              style={{ height: "auto" }}
               priority
             />
             <div>

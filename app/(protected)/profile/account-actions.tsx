@@ -107,7 +107,7 @@ export function DeleteAccountButton() {
               <h2 className="text-xl font-black tracking-tight">
                 Delete your account?
               </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-[260px]">
+              <p className="text-sm text-muted-foreground leading-relaxed max-w-65">
                 This is{" "}
                 <span className="font-bold text-foreground">permanent</span>.
                 Your profile, photos, conversations, and vouch codes will be
@@ -329,7 +329,7 @@ function Modal({
         if (e.target === e.currentTarget) onClose?.();
       }}
     >
-      <div className="w-full max-w-[340px] bg-card rounded-[2rem] p-6 shadow-2xl border border-border animate-in zoom-in-95 duration-200">
+      <div className="w-full max-w-85 bg-card rounded-[2rem] p-6 shadow-2xl border border-border animate-in zoom-in-95 duration-200">
         {onClose && (
           <button
             onClick={onClose}

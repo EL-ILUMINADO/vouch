@@ -28,8 +28,8 @@ export default function LandingPage() {
   return (
     <main className="min-h-screen bg-linear-to-br from-rose-50 via-background to-purple-50/40 dark:from-rose-950/20 dark:via-background dark:to-purple-950/20 text-foreground overflow-hidden relative">
       {/* Soft background blobs */}
-      <div className="pointer-events-none absolute -top-32 -right-32 w-[500px] h-[500px] rounded-full bg-rose-300/20 dark:bg-rose-500/10 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-32 -left-32 w-[400px] h-[400px] rounded-full bg-purple-300/20 dark:bg-purple-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -top-32 -right-32 w-125 h-125 rounded-full bg-rose-300/20 dark:bg-rose-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-32 -left-32 w-100 h-100 rounded-full bg-purple-300/20 dark:bg-purple-500/10 blur-3xl" />
 
       {/* Top nav */}
       <nav className="relative z-10 flex items-center justify-between px-6 py-5">
@@ -40,6 +40,7 @@ export default function LandingPage() {
             width={36}
             height={36}
             className="rounded-xl"
+            style={{ height: "auto" }}
             priority
           />
           <span className="text-[9px] font-black uppercase tracking-widest bg-rose-100 dark:bg-rose-500/20 text-rose-500 px-2 py-0.5 rounded-full">

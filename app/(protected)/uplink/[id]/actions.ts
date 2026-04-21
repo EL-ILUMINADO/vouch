@@ -16,6 +16,7 @@ import { cookies } from "next/headers";
 import { eq, desc, or, and, lt, asc } from "drizzle-orm";
 import { recordLikeAndCheckMatch } from "@/lib/match";
 import { revalidatePath } from "next/cache";
+import { sendPushToUser } from "@/lib/push";
 
 /**
  * Block a user. Severs the active conversation, cancels pending radar requests,
@@ -115,7 +116,7 @@ export async function sendMessage(
 
   // Server-side verification gate.
   const [me] = await db
-    .select({ verificationStatus: users.verificationStatus })
+    .select({ verificationStatus: users.verificationStatus, name: users.name })
     .from(users)
     .where(eq(users.id, session.userId as string))
     .limit(1);
@@ -188,6 +189,14 @@ export async function sendMessage(
       .where(eq(conversations.id, conversationId));
 
     await pusherServer.trigger(conversationId, "new-message", newMessage);
+
+    // Web push to the other user — content deliberately hidden
+    sendPushToUser(
+      otherUserId,
+      "New message",
+      `${me.name ?? "Someone"} sent you a message.`,
+      `/uplink/${conversationId}`,
+    ).catch(() => {});
 
     return { success: true };
   } catch {

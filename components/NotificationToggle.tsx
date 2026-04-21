@@ -1,9 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { savePushSubscription } from "@/app/(protected)/profile/actions";
+import {
+  savePushSubscription,
+  deletePushSubscriptions,
+} from "@/app/(protected)/profile/actions";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -16,17 +19,26 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
 }
 
 export function NotificationToggle() {
-  const [status, setStatus] = React.useState<
-    "idle" | "loading" | "granted" | "denied" | "unsupported"
-  >("idle");
+  const [enabled, setEnabled] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
+  const [denied, setDenied] = React.useState(false);
+  const [unsupported, setUnsupported] = React.useState(false);
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !("Notification" in window)) {
-      setStatus("unsupported");
+      setUnsupported(true);
       return;
     }
-    if (Notification.permission === "granted") setStatus("granted");
-    if (Notification.permission === "denied") setStatus("denied");
+    if (Notification.permission === "denied") {
+      setDenied(true);
+      return;
+    }
+    if (Notification.permission === "granted") {
+      // Check if there's actually an active push subscription.
+      navigator.serviceWorker.ready.then((reg) =>
+        reg.pushManager.getSubscription().then((sub) => setEnabled(!!sub)),
+      );
+    }
   }, []);
 
   const handleEnable = async () => {
@@ -35,21 +47,18 @@ export function NotificationToggle() {
       return;
     }
 
-    setStatus("loading");
-
+    setPending(true);
     try {
-      // Reuse the already-registered service worker (PwaInit registers it globally).
       const registration = await navigator.serviceWorker.ready;
-
-      // Request permission.
       const permission = await Notification.requestPermission();
-      if (permission !== "granted") {
-        setStatus("denied");
-        toast.error("Notification permission denied.");
+
+      if (permission === "denied") {
+        setDenied(true);
+        toast.error("Notifications blocked — allow them in browser settings.");
+        setPending(false);
         return;
       }
 
-      // Subscribe to push.
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
@@ -63,66 +72,78 @@ export function NotificationToggle() {
       };
 
       const result = await savePushSubscription(json);
-
       if ("error" in result) {
         toast.error(result.error);
-        setStatus("idle");
+        setPending(false);
         return;
       }
 
-      setStatus("granted");
+      setEnabled(true);
       toast.success("Notifications enabled!");
     } catch (err) {
       console.error("[PUSH_ENABLE]", err);
       toast.error("Failed to enable notifications.");
-      setStatus("idle");
+    } finally {
+      setPending(false);
     }
   };
 
-  if (status === "unsupported") return null;
+  const handleDisable = async () => {
+    setPending(true);
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      await subscription?.unsubscribe();
 
-  if (status === "granted") {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-500/10 border border-green-500/20">
-        <Bell className="w-4 h-4 text-green-500 shrink-0" />
-        <span className="text-xs font-semibold text-green-600 dark:text-green-400">
-          Notifications enabled
-        </span>
-      </div>
-    );
-  }
+      await deletePushSubscriptions();
+      setEnabled(false);
+      toast.success("Notifications disabled.");
+    } catch (err) {
+      console.error("[PUSH_DISABLE]", err);
+      toast.error("Failed to disable notifications.");
+    } finally {
+      setPending(false);
+    }
+  };
 
-  if (status === "denied") {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted border border-border">
-        <BellOff className="w-4 h-4 text-muted-foreground shrink-0" />
-        <span className="text-xs font-medium text-muted-foreground">
-          Notifications blocked — enable in browser settings
-        </span>
-      </div>
-    );
-  }
+  if (unsupported) return null;
 
   return (
-    <button
-      type="button"
-      onClick={handleEnable}
-      disabled={status === "loading"}
-      className="flex items-center gap-3 w-full px-4 py-3 bg-card border border-border rounded-2xl hover:bg-muted transition-colors disabled:opacity-50 text-left"
-    >
-      {status === "loading" ? (
-        <Loader2 className="w-4 h-4 text-muted-foreground animate-spin shrink-0" />
-      ) : (
-        <Bell className="w-4 h-4 text-muted-foreground shrink-0" />
-      )}
+    <div className="bg-card p-4 rounded-3xl border border-border shadow-sm flex justify-between items-center">
       <div>
         <span className="block text-sm font-bold text-foreground">
-          Enable Notifications
+          Notifications
         </span>
         <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
-          Get alerted when you match
+          {denied
+            ? "Blocked in browser settings"
+            : enabled
+              ? "Alerts for matches & pings"
+              : "Get alerted when you match"}
         </span>
       </div>
-    </button>
+
+      {denied ? (
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+          Blocked
+        </span>
+      ) : pending ? (
+        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      ) : (
+        <button
+          onClick={enabled ? handleDisable : handleEnable}
+          title={enabled ? "Disable notifications" : "Enable notifications"}
+          className={`relative inline-flex items-center w-11 h-6 rounded-full transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 ${
+            enabled ? "bg-rose-500" : "bg-muted border border-border"
+          }`}
+        >
+          <span
+            className={`inline-block w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-200 ${
+              enabled ? "translate-x-6" : "translate-x-1"
+            }`}
+          />
+        </button>
+      )}
+    </div>
   );
 }
