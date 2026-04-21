@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { conversations, messages, users } from "@/db/schema";
-import { eq, asc, desc, count } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 
 const PAGE_SIZE = 20;
 import { decrypt } from "@/lib/auth";

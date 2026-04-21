@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   Flag,
   MessageSquare,
+  Users,
   LogOut,
   Menu,
   X,
@@ -29,6 +30,7 @@ const NAV_ITEMS = [
     icon: MessageSquare,
     exact: false,
   },
+  { href: "/admin/users", label: "Users", icon: Users, exact: false },
 ];
 
 function SidebarContent({ onClose }: { onClose?: () => void }) {

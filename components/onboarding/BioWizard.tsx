@@ -149,7 +149,7 @@ export function BioWizard() {
           </div>
         </div>
 
-        <div className="pt-4 min-h-[300px]">
+        <div className="pt-4 min-h-75">
           {currentPhase === 1 && <PhaseOne />}
           {currentPhase === 2 && <PhaseTwo />}
           {currentPhase === 3 && <PhaseThree />}

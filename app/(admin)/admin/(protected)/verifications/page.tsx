@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -25,6 +26,8 @@ async function getPendingVerifications() {
       level: users.level,
       verificationVideoUrl: users.verificationVideoUrl,
       verificationMethod: users.verificationMethod,
+      profileImage: users.profileImage,
+      images: users.images,
       createdAt: users.createdAt,
     })
     .from(users)
@@ -109,14 +112,14 @@ export default async function VerificationsPage() {
               {/* ── Two-column body ── */}
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px]">
                 {/* ── Video panel ── */}
-                <div className="bg-black flex items-center justify-center min-h-[360px]">
+                <div className="bg-black flex items-center justify-center min-h-90">
                   {user.verificationVideoUrl ? (
                     <video
                       src={user.verificationVideoUrl}
                       controls
                       playsInline
                       preload="metadata"
-                      className="w-full max-h-[520px] object-contain"
+                      className="w-full max-h-130 object-contain"
                     />
                   ) : (
                     <div className="flex flex-col items-center gap-3 py-16 text-zinc-600">
@@ -184,6 +187,54 @@ export default async function VerificationsPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Profile Photos */}
+                  {(user.profileImage ||
+                    (user.images && user.images.length > 0)) && (
+                    <div className="space-y-2">
+                      <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest">
+                        Profile Photos
+                      </p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {user.profileImage && (
+                          <a
+                            href={user.profileImage}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="relative"
+                            title="Profile photo"
+                          >
+                            <Image
+                              src={user.profileImage}
+                              alt="Profile"
+                              width={200}
+                              height={200}
+                              className="w-full aspect-square object-cover rounded-lg ring-2 ring-rose-500/40"
+                            />
+                            <span className="absolute bottom-0.5 left-0.5 text-[8px] font-black uppercase tracking-widest bg-rose-500 text-white px-1 rounded">
+                              main
+                            </span>
+                          </a>
+                        )}
+                        {user.images?.map((img, i) => (
+                          <a
+                            key={i}
+                            href={img}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Image
+                              src={img}
+                              alt={`Photo ${i + 1}`}
+                              width={200}
+                              height={200}
+                              className="w-full aspect-square object-cover rounded-lg"
+                            />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Divider */}
                   <div className="border-t border-zinc-800" />

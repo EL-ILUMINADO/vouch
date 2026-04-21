@@ -12,8 +12,6 @@ export async function scanImage(
 ): Promise<{ isSafe: boolean; reason?: string }> {
   if (!model) {
     await tf.ready();
-    // MobileNetV2Mid gives better accuracy than the default MobileNetV2
-    // while remaining fast enough for in-browser use.
     model = await nsfwjs.load("MobileNetV2Mid");
   }
 
@@ -54,41 +52,34 @@ export async function scanImage(
           reason: `Not a real photo — appears to be artwork or illustration (${(drawing * 100).toFixed(0)}% confidence)`,
         });
 
-      // Hard explicit checks — thresholds raised slightly from 3% to 6% to
-      // reduce false positives on legitimate photos while still catching clear
-      // violations.
-      if (porn >= 0.06)
+      // Hard explicit checks — 20% threshold gives the model enough room to
+      // stop flagging beach/gym photos while still catching genuine violations.
+      if (porn >= 0.2)
         return resolve({
           isSafe: false,
           reason: `Explicit content detected (${(porn * 100).toFixed(0)}% confidence)`,
         });
-      if (hentai >= 0.06)
+      if (hentai >= 0.2)
         return resolve({
           isSafe: false,
           reason: `Explicit illustrated content detected (${(hentai * 100).toFixed(0)}% confidence)`,
         });
 
-      // Combined explicit signal: even if individual scores fall below the
-      // per-category threshold, a high aggregate still signals unsafe content.
+      // Combined explicit signal — catches cases where both scores are elevated
+      // but individually just under the per-category threshold.
       const combinedExplicit = porn + hentai;
-      if (combinedExplicit >= 0.1)
+      if (combinedExplicit >= 0.35)
         return resolve({
           isSafe: false,
           reason: `Explicit content detected (combined score: ${(combinedExplicit * 100).toFixed(0)}%)`,
         });
 
-      if (sexy >= 0.3)
+      // 55% threshold means only clearly suggestive content is blocked —
+      // gym selfies, party shots, and beach photos pass comfortably.
+      if (sexy >= 0.55)
         return resolve({
           isSafe: false,
           reason: `Suggestive content detected (${(sexy * 100).toFixed(0)}% confidence)`,
-        });
-
-      // Final safety net: if less than 20% of the image scores as Neutral,
-      // something unusual is present even if specific categories didn't trip.
-      if (neutral < 0.2)
-        return resolve({
-          isSafe: false,
-          reason: `Image did not pass safety check (low neutral score: ${(neutral * 100).toFixed(0)}%)`,
         });
 
       resolve({ isSafe: true });

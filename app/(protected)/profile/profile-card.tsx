@@ -3,7 +3,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Pencil, Check, X, Loader2 } from "lucide-react";
+import { Pencil, Check, X, Loader2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { ProfilePhotos } from "./profile-photos";
 import {
@@ -14,6 +14,8 @@ import {
   updatePrompt,
   updateOnboardingAnswers,
 } from "./actions";
+import { curateBioHeadline } from "@/app/(onboarding)/onboarding/bio/ai-action";
+import { validateBio } from "@/lib/validations";
 
 // ─── Option lists (mirror onboarding wizard) ───────────────────────────────
 
@@ -246,6 +248,7 @@ export function ProfileCard({
   const [bioEditing, setBioEditing] = React.useState(false);
   const [bioPending, setBioPending] = React.useState(false);
   const [bioError, setBioError] = React.useState<string | null>(null);
+  const [bioRegenerating, setBioRegenerating] = React.useState(false);
 
   // ── Vibe fields (grouped edit) ──
   const [vibeValues, setVibeValues] = React.useState({
@@ -309,6 +312,11 @@ export function ProfileCard({
   }
 
   async function handleBioSave() {
+    const check = validateBio(bioValue);
+    if (!check.valid) {
+      setBioError(check.error ?? "Invalid bio.");
+      return;
+    }
     setBioPending(true);
     setBioError(null);
     const result = await updateBio(bioValue);
@@ -325,6 +333,32 @@ export function ProfileCard({
     setBioValue(bioHeadline ?? "");
     setBioEditing(false);
     setBioError(null);
+  }
+
+  async function handleBioRegenerate() {
+    setBioRegenerating(true);
+    setBioError(null);
+    const result = await curateBioHeadline({
+      intent: vibeValues.intent,
+      relationship_style: vibeValues.relationshipStyle,
+      energy_vibe: vibeValues.energyVibe,
+      social_energy: vibeValues.socialEnergy,
+      conflict_style: vibeValues.conflictStyle,
+      deal_breakers: deepValues.dealBreakers,
+      passion_signal: quickValues.passion,
+      misunderstood_trait: quickValues.misunderstood,
+      growth_focus: quickValues.growth,
+      weekend_activity: quickValues.weekend,
+      happiness_trigger: quickValues.happiness,
+    });
+    if (result.error) {
+      setBioError(result.error);
+      toast.error("Couldn't generate bio. Try again.");
+    } else {
+      setBioValue(result.headline ?? "");
+      setBioEditing(true);
+    }
+    setBioRegenerating(false);
   }
 
   // Vibe
@@ -448,8 +482,6 @@ export function ProfileCard({
 
   const hasAnyQuickTake = Object.values(quickValues).some((v) => v);
   const hasAnyVibe = Object.values(vibeValues).some((v) => v);
-  const hasAnyDeep = Object.values(deepValues).some((v) => v);
-
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
@@ -511,18 +543,37 @@ export function ProfileCard({
           <div className="flex items-center justify-between">
             <SectionLabel>Bio</SectionLabel>
             {!bioEditing && (
-              <EditBtn
-                onClick={() => setBioEditing(true)}
-                label={bioValue ? "Edit" : "Add"}
-              />
+              <button
+                onClick={handleBioRegenerate}
+                disabled={bioRegenerating}
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {bioRegenerating ? (
+                  <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                ) : (
+                  <Sparkles className="w-2.5 h-2.5" />
+                )}
+                {bioRegenerating ? "Writing…" : "Regenerate with AI"}
+              </button>
             )}
           </div>
+
+          {!bioEditing && (
+            <p className="text-[10px] text-muted-foreground/50 italic">
+              Updated your vibe or interests? Let AI rewrite your story.
+            </p>
+          )}
 
           {bioEditing ? (
             <div className="space-y-2">
               <textarea
                 value={bioValue}
-                onChange={(e) => setBioValue(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setBioValue(val);
+                  const check = validateBio(val);
+                  setBioError(check.valid ? null : (check.error ?? null));
+                }}
                 maxLength={300}
                 rows={3}
                 placeholder="Write something about yourself…"
@@ -650,31 +701,56 @@ export function ProfileCard({
             />
           </div>
         ) : hasAnyVibe ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="space-y-3">
             {vibeValues.intent && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-full">
-                {vibeValues.intent}
-              </span>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
+                  What are you here for?
+                </p>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 px-3 py-1 rounded-full inline-block">
+                  {vibeValues.intent}
+                </span>
+              </div>
             )}
             {vibeValues.socialEnergy && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                {vibeValues.socialEnergy}
-              </span>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
+                  What&apos;s your social energy?
+                </p>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground inline-block">
+                  {vibeValues.socialEnergy}
+                </span>
+              </div>
             )}
             {vibeValues.energyVibe && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                {vibeValues.energyVibe}
-              </span>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
+                  How do you move through life?
+                </p>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground inline-block">
+                  {vibeValues.energyVibe}
+                </span>
+              </div>
             )}
             {vibeValues.relationshipStyle && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                {vibeValues.relationshipStyle}
-              </span>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
+                  What&apos;s your relationship style?
+                </p>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground inline-block">
+                  {vibeValues.relationshipStyle}
+                </span>
+              </div>
             )}
             {vibeValues.conflictStyle && (
-              <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground">
-                {vibeValues.conflictStyle}
-              </span>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/50">
+                  How do you handle conflict?
+                </p>
+                <span className="text-[10px] font-black uppercase tracking-widest bg-muted border border-border px-3 py-1 rounded-full text-muted-foreground inline-block">
+                  {vibeValues.conflictStyle}
+                </span>
+              </div>
             )}
           </div>
         ) : (
