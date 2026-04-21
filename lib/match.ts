@@ -1,20 +1,10 @@
 import { db } from "@/db";
 import { likes, conversations, users } from "@/db/schema";
 import { and, or, eq, gte, count } from "drizzle-orm";
-import { sendPushToUser } from "@/lib/push";
+import { notify } from "@/lib/notifications";
 
 const DAILY_HANDSHAKE_LIMIT = 50;
 
-/**
- * Records a like from `likerId` → `likedUserId`, then checks for a mutual match.
- * On mutual match:
- *  - If a closed_inactive conversation exists between them, it is reactivated
- *    (history preserved).
- *  - Otherwise a new conversation is created.
- *
- * Returns `{ matched: true, conversationId }` when both users have liked each
- * other, or `{ matched: false }` when only the initiator has liked so far.
- */
 export async function recordLikeAndCheckMatch(
   likerId: string,
   likedUserId: string,
@@ -60,7 +50,25 @@ export async function recordLikeAndCheckMatch(
     )
     .limit(1);
 
-  if (!theirLike) return { matched: false };
+  if (!theirLike) {
+    // One-way like — notify the liked user.
+    const [liker] = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, likerId))
+      .limit(1);
+
+    notify({
+      userId: likedUserId,
+      type: "like_received",
+      title: "Someone liked you! 💜",
+      body: `${liker?.name ?? "Someone"} liked your profile.`,
+      actionUrl: "/likes",
+      actorId: likerId,
+    }).catch(() => {});
+
+    return { matched: false };
+  }
 
   // Mark their like as consumed so it disappears from the likes page
   await db
@@ -123,12 +131,14 @@ export async function recordLikeAndCheckMatch(
     .where(eq(users.id, likerId))
     .limit(1);
 
-  sendPushToUser(
-    likedUserId,
-    "You got a match!",
-    `${liker?.name ?? "Someone"} matched with you on Vouch.`,
-    `/uplink/${newConvo.id}`,
-  ).catch(() => {});
+  notify({
+    userId: likedUserId,
+    type: "match",
+    title: "You got a match!",
+    body: `${liker?.name ?? "Someone"} matched with you on Vouch.`,
+    actionUrl: `/uplink/${newConvo.id}`,
+    actorId: likerId,
+  }).catch(() => {});
 
   return { matched: true, conversationId: newConvo.id };
 }

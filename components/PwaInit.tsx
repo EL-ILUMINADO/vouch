@@ -64,6 +64,7 @@ export function PwaInit() {
           width={40}
           height={40}
           className="rounded-xl shrink-0"
+          style={{ height: "auto" }}
         />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-bold text-foreground leading-tight">

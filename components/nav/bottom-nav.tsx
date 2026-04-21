@@ -3,13 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Map, User, Zap, MessageCircle, Heart } from "lucide-react";
+import { Map, User, Zap, MessageCircle, Heart, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNotifications } from "@/components/notification-provider";
 
 interface BottomNavProps {
   likesCount?: number;
   chatsCount?: number;
   radarRequestCount?: number;
+  notificationsCount?: number;
   profileAlert?: boolean;
 }
 
@@ -17,19 +19,18 @@ export function BottomNav({
   likesCount = 0,
   chatsCount = 0,
   radarRequestCount = 0,
+  notificationsCount = 0,
   profileAlert = false,
 }: BottomNavProps) {
   const pathname = usePathname();
+  const { unreadCount: liveUnreadCount } = useNotifications();
 
-  // Hold counts in local state so we can zero them instantly on navigation
-  // without waiting for the server layout to re-render.
   const [counts, setCounts] = React.useState({
     likes: likesCount,
     chats: chatsCount,
     radar: radarRequestCount,
   });
 
-  // When the server layout re-renders with fresh values, sync them in.
   React.useEffect(() => {
     setCounts({
       likes: likesCount,
@@ -38,20 +39,16 @@ export function BottomNav({
     });
   }, [likesCount, chatsCount, radarRequestCount]);
 
-  // Clear the relevant badge the instant the user arrives at the page
-  // that surfaces those notifications — no refresh needed.
+  // Clear other badges instantly on navigation.
   React.useEffect(() => {
-    if (pathname.startsWith("/likes")) {
-      setCounts((c) => ({ ...c, likes: 0 }));
-    }
-    if (pathname.startsWith("/inbox")) {
-      setCounts((c) => ({ ...c, chats: 0 }));
-    }
-    // Radar pings are shown on /chats; also clear when inside a conversation.
-    if (pathname.startsWith("/chats") || pathname.startsWith("/uplink")) {
+    if (pathname.startsWith("/likes")) setCounts((c) => ({ ...c, likes: 0 }));
+    if (pathname.startsWith("/chats") || pathname.startsWith("/uplink"))
       setCounts((c) => ({ ...c, radar: 0 }));
-    }
   }, [pathname]);
+
+  // Live notification count comes from SSE context; fallback to server prop
+  // for the initial render before the stream connects.
+  const notificationBadge = liveUnreadCount ?? notificationsCount;
 
   const navItems = [
     {
@@ -67,6 +64,13 @@ export function BottomNav({
       href: "/likes",
       icon: Heart,
       badge: counts.likes,
+      dot: false,
+    },
+    {
+      name: "Activity",
+      href: "/notifications",
+      icon: Bell,
+      badge: notificationBadge,
       dot: false,
     },
     {
@@ -98,35 +102,33 @@ export function BottomNav({
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex flex-col items-center justify-center flex-1 h-full gap-1 transition-all",
+                "relative flex flex-col items-center justify-center flex-1 h-full gap-0.5 transition-all",
                 isActive
-                  ? "text-rose-500 dark:text-rose-400 scale-110"
+                  ? "text-rose-500 dark:text-rose-400 scale-105"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
               <div className="relative">
                 <Icon
                   className={cn(
-                    "w-5 h-5",
+                    "w-4.5 h-4.5",
                     isActive && "fill-rose-500/10 dark:fill-rose-400/10",
                   )}
                 />
-                {/* Numeric badge */}
                 {item.badge > 0 && (
-                  <span className="absolute -top-2 -right-2.5 min-w-[16px] h-4 px-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center leading-none">
+                  <span className="absolute -top-2 -right-2.5 min-w-4 h-4 px-0.5 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center leading-none">
                     {item.badge > 99 ? "99+" : item.badge}
                   </span>
                 )}
-                {/* Dot indicator (no number) */}
                 {item.dot && item.badge === 0 && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 border-background" />
                 )}
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-widest">
+              <span className="text-[9px] font-bold uppercase tracking-widest">
                 {item.name}
               </span>
               {isActive && (
-                <div className="absolute -top-px w-8 h-1 bg-rose-500 dark:bg-rose-400 rounded-full" />
+                <div className="absolute -top-px w-6 h-1 bg-rose-500 dark:bg-rose-400 rounded-full" />
               )}
             </Link>
           );

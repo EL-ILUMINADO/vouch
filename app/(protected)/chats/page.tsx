@@ -1,11 +1,5 @@
 import { db } from "@/db";
-import {
-  conversations,
-  users,
-  platformMessages,
-  radarRequests,
-  messages,
-} from "@/db/schema";
+import { conversations, users, radarRequests, messages } from "@/db/schema";
 import { eq, or, desc, sql, and, ne, inArray } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
@@ -19,12 +13,7 @@ export default async function ChatsPage() {
   const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
   const currentUserId = session?.userId as string;
 
-  const [
-    userConversations,
-    unreadPlatformCount,
-    latestPlatformMsg,
-    rawPendingPings,
-  ] = await Promise.all([
+  const [userConversations, rawPendingPings] = await Promise.all([
     db
       .select({
         id: conversations.id,
@@ -54,28 +43,6 @@ export default async function ChatsPage() {
         ),
       )
       .orderBy(desc(conversations.updatedAt)),
-
-    db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(platformMessages)
-      .where(
-        and(
-          eq(platformMessages.recipientId, currentUserId),
-          eq(platformMessages.isRead, false),
-        ),
-      )
-      .then((r) => r[0]?.count ?? 0),
-
-    db
-      .select({
-        content: platformMessages.content,
-        createdAt: platformMessages.createdAt,
-      })
-      .from(platformMessages)
-      .where(eq(platformMessages.recipientId, currentUserId))
-      .orderBy(desc(platformMessages.createdAt))
-      .limit(1)
-      .then((r) => r[0] ?? null),
 
     // Incoming radar pings awaiting my response.
     db
@@ -167,8 +134,7 @@ export default async function ChatsPage() {
     }
   }
 
-  const totalConnections =
-    userConversations.length + (latestPlatformMsg ? 1 : 0);
+  const totalConnections = userConversations.length;
 
   return (
     <main className="min-h-screen bg-background">
@@ -195,42 +161,7 @@ export default async function ChatsPage() {
           </div>
         )}
 
-        {/* Vouch Platform Inbox — pinned at top if any messages exist */}
-        {latestPlatformMsg && (
-          <Link
-            href="/inbox"
-            className="flex items-center gap-4 p-4 rounded-[1.5rem] hover:bg-accent transition-all active:scale-[0.98] group"
-          >
-            <div className="relative w-14 h-14 rounded-full bg-rose-500 flex items-center justify-center text-white font-black text-xl shrink-0">
-              V
-              {unreadPlatformCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-rose-600 rounded-full flex items-center justify-center text-[10px] font-black text-white border-2 border-background">
-                  {unreadPlatformCount > 9 ? "9+" : unreadPlatformCount}
-                </span>
-              )}
-            </div>
-            <div className="flex-1 min-w-0 border-b border-border pb-4">
-              <div className="flex justify-between items-baseline gap-2">
-                <h3 className="font-bold text-foreground flex items-center gap-1.5 truncate">
-                  Vouch
-                  <span className="text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded-full">
-                    Platform
-                  </span>
-                </h3>
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tighter shrink-0">
-                  {new Date(latestPlatformMsg.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <p className="text-xs text-muted-foreground font-medium truncate mt-0.5">
-                {latestPlatformMsg.content.split("\n")[0]}
-              </p>
-            </div>
-          </Link>
-        )}
-
-        {userConversations.length === 0 &&
-        !latestPlatformMsg &&
-        pendingPings.length === 0 ? (
+        {userConversations.length === 0 && pendingPings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/40 space-y-4">
             <MessageSquareOff className="w-12 h-12 stroke-1" />
             <p className="text-sm font-medium">No active handshakes yet.</p>

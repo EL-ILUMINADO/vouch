@@ -485,3 +485,23 @@ export async function savePushSubscription(subscription: {
     return { error: "Failed to save subscription." };
   }
 }
+
+export async function deletePushSubscriptions(): Promise<
+  { success: true } | { error: string }
+> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get("vouch_session")?.value;
+  if (!token) return { error: "Not authenticated." };
+
+  const session = await decrypt(token);
+  if (!session) return { error: "Invalid session." };
+
+  try {
+    await db
+      .delete(pushSubscriptions)
+      .where(eq(pushSubscriptions.userId, session.userId as string));
+    return { success: true };
+  } catch {
+    return { error: "Failed to remove subscription." };
+  }
+}
