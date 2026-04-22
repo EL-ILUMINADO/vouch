@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { users, conversations, radarRequests } from "@/db/schema";
-import { eq, or, and } from "drizzle-orm";
+import { eq, or, and, sql } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
@@ -30,6 +30,18 @@ async function getVerifiedSession() {
  */
 export async function sendRadarPing(targetUserId: string) {
   const currentUserId = await getVerifiedSession();
+
+  // Lazy cleanup: sweep expired pending requests before doing any work.
+  // Avoids a background job while keeping the table tidy.
+  db.update(radarRequests)
+    .set({ status: "expired" })
+    .where(
+      and(
+        eq(radarRequests.status, "pending"),
+        sql`${radarRequests.expiresAt} < now()`,
+      ),
+    )
+    .catch(() => {});
 
   const [currentUser] = await db
     .select({
@@ -145,6 +157,60 @@ export async function sendRadarPing(targetUserId: string) {
     status: "pending",
     expiresAt,
   });
+
+  // Post-insert re-check: if B pinged A in the same millisecond window, both
+  // pending rows now exist. Reading after our own insert catches this case.
+  const [nowMutual] = await db
+    .select({ id: radarRequests.id })
+    .from(radarRequests)
+    .where(
+      and(
+        eq(radarRequests.senderId, targetUserId),
+        eq(radarRequests.receiverId, currentUserId),
+        eq(radarRequests.status, "pending"),
+      ),
+    )
+    .limit(1);
+
+  if (nowMutual) {
+    await db
+      .update(radarRequests)
+      .set({ status: "accepted" })
+      .where(
+        or(
+          eq(radarRequests.id, nowMutual.id),
+          and(
+            eq(radarRequests.senderId, currentUserId),
+            eq(radarRequests.receiverId, targetUserId),
+            eq(radarRequests.status, "pending"),
+          ),
+        ),
+      );
+
+    const conversationId = await findOrCreateConversation(
+      currentUserId,
+      targetUserId,
+    );
+
+    const [me] = await db
+      .select({ name: users.name })
+      .from(users)
+      .where(eq(users.id, currentUserId))
+      .limit(1);
+
+    notify({
+      userId: targetUserId,
+      type: "radar_accepted",
+      title: "New Match on Radar! 📡",
+      body: `${me?.name ?? "Someone"} connected with you.`,
+      actionUrl: `/uplink/${conversationId}`,
+      actorId: currentUserId,
+    }).catch(() => {});
+
+    revalidatePath("/radar");
+    revalidatePath("/chats");
+    redirect(`/uplink/${conversationId}`);
+  }
 
   // Notify the receiver of the incoming ping.
   const [sender] = await db

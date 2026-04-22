@@ -17,7 +17,7 @@ export function CultureCheckCard({ universityId, universityName }: Props) {
   return (
     <>
       <div
-        className="group relative flex flex-col justify-between p-8 rounded-3xl border-2 border-border bg-card text-foreground hover:border-rose-300 dark:hover:border-rose-500/50 hover:shadow-lg transition-all duration-300 min-h-[320px] cursor-pointer"
+        className="group relative flex flex-col justify-between p-8 rounded-3xl border-2 border-border bg-card text-foreground hover:border-rose-300 dark:hover:border-rose-500/50 hover:shadow-lg transition-all duration-300 min-h-80 cursor-pointer"
         onClick={() => setIsOpen(true)}
       >
         <div className="space-y-5">

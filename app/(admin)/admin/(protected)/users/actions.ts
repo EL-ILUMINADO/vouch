@@ -1,8 +1,15 @@
 "use server";
 
 import { db } from "@/db";
-import { users, bannedDevices, bannedEmails } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import {
+  users,
+  bannedDevices,
+  bannedEmails,
+  conversations,
+  reports,
+  vouchCodes,
+} from "@/db/schema";
+import { eq, or } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import {
   adminIssueWarning,
@@ -12,7 +19,7 @@ import {
 } from "@/lib/platform-messages";
 import { adjustTrustScore, TRUST_DELTAS } from "@/lib/trust-score";
 
-export type UserActionResult = { error?: string };
+export type UserActionResult = { error?: string; deleted?: boolean };
 
 export async function sendWarning(userId: string): Promise<UserActionResult> {
   const [user] = await db
@@ -119,4 +126,66 @@ export async function banUser(userId: string): Promise<UserActionResult> {
   await sendBanNotice(userId);
   revalidatePath("/admin/users");
   return {};
+}
+
+export async function deleteUser(
+  userId: string,
+  adminPassword: string,
+): Promise<UserActionResult> {
+  if (adminPassword !== process.env.ADMIN_PASSWORD) {
+    return { error: "Incorrect admin password." };
+  }
+
+  const [user] = await db
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (!user) return { error: "User not found." };
+
+  // Null out self-referential FK on other users
+  await db
+    .update(users)
+    .set({ vouchedById: null })
+    .where(eq(users.vouchedById, userId));
+
+  // Null out closedByUserId on conversations not belonging to this user
+  await db
+    .update(conversations)
+    .set({ closedByUserId: null })
+    .where(eq(conversations.closedByUserId, userId));
+
+  // Delete reports involving this user
+  await db
+    .delete(reports)
+    .where(
+      or(eq(reports.reporterId, userId), eq(reports.reportedUserId, userId)),
+    );
+
+  // Delete conversations (cascades messages)
+  await db
+    .delete(conversations)
+    .where(
+      or(
+        eq(conversations.userOneId, userId),
+        eq(conversations.userTwoId, userId),
+      ),
+    );
+
+  // Delete vouch codes issued or used by this user
+  await db
+    .delete(vouchCodes)
+    .where(
+      or(eq(vouchCodes.issuerId, userId), eq(vouchCodes.usedById, userId)),
+    );
+
+  // Delete banned device records linked to this user
+  await db.delete(bannedDevices).where(eq(bannedDevices.userId, userId));
+
+  // Delete the user (cascades: platformMessages, likes, radarRequests, blocks, pushSubscriptions, notifications)
+  await db.delete(users).where(eq(users.id, userId));
+
+  revalidatePath("/admin/users");
+  return { deleted: true };
 }
