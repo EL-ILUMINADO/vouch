@@ -7,8 +7,10 @@ import {
   radarRequests,
   notifications,
   platformMessages,
+  messages,
+  conversations,
 } from "@/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, or, ne } from "drizzle-orm";
 import { BottomNav } from "./bottom-nav";
 
 export async function BottomNavWrapper() {
@@ -23,7 +25,8 @@ export async function BottomNavWrapper() {
 
   const [
     likesCount,
-    chatsCount,
+    platformUnreadCount,
+    p2pUnreadCount,
     radarRequestCount,
     notificationsCount,
     userData,
@@ -41,6 +44,22 @@ export async function BottomNavWrapper() {
         and(
           eq(platformMessages.recipientId, userId),
           eq(platformMessages.isRead, false),
+        ),
+      )
+      .then((r) => r[0]?.count ?? 0),
+
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(messages)
+      .innerJoin(conversations, eq(messages.conversationId, conversations.id))
+      .where(
+        and(
+          or(
+            eq(conversations.userOneId, userId),
+            eq(conversations.userTwoId, userId),
+          ),
+          eq(messages.isRead, false),
+          ne(messages.senderId, userId),
         ),
       )
       .then((r) => r[0]?.count ?? 0),
@@ -81,6 +100,8 @@ export async function BottomNavWrapper() {
     (userData.verificationStatus !== "verified" ||
       userData.requiresPulseCheck) &&
     userData.verificationStatus !== "banned";
+
+  const chatsCount = platformUnreadCount + p2pUnreadCount;
 
   return (
     <BottomNav

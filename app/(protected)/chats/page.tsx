@@ -124,10 +124,11 @@ export default async function ChatsPage() {
       });
   }
 
-  // Fetch the latest message preview for each active conversation.
+  // Fetch the latest message preview and unread counts for each active conversation.
   const convIds = userConversations.map((c) => c.id);
   type LastMsg = { content: string; senderId: string; deletedAt: Date | null };
   const lastMsgMap: Record<string, LastMsg> = {};
+  const unreadCountMap: Record<string, number> = {};
 
   if (convIds.length > 0) {
     const latestPerConvo = db
@@ -164,6 +165,25 @@ export default async function ChatsPage() {
         senderId: msg.senderId,
         deletedAt: msg.deletedAt,
       };
+    }
+
+    const unreads = await db
+      .select({
+        conversationId: messages.conversationId,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(messages)
+      .where(
+        and(
+          inArray(messages.conversationId, convIds),
+          eq(messages.isRead, false),
+          ne(messages.senderId, currentUserId),
+        ),
+      )
+      .groupBy(messages.conversationId);
+
+    for (const { conversationId, count } of unreads) {
+      unreadCountMap[conversationId] = count;
     }
   }
 
@@ -276,9 +296,18 @@ export default async function ChatsPage() {
                       {new Date(convo.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-xs text-muted-foreground font-medium truncate mt-0.5">
-                    {preview}
-                  </p>
+                  <div className="flex justify-between items-center mt-0.5 gap-2">
+                    <p
+                      className={`text-xs truncate ${unreadCountMap[convo.id] ? "font-bold text-foreground" : "text-muted-foreground font-medium"}`}
+                    >
+                      {preview}
+                    </p>
+                    {!!unreadCountMap[convo.id] && (
+                      <span className="shrink-0 min-w-4 h-4 px-1 rounded-full bg-rose-500 flex items-center justify-center text-[10px] font-black text-white leading-none">
+                        {unreadCountMap[convo.id]}
+                      </span>
+                    )}
+                  </div>
                 </div>
               </Link>
             );

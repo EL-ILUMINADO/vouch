@@ -1,6 +1,6 @@
 import { db } from "@/db";
 import { conversations, messages, users } from "@/db/schema";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, and, ne } from "drizzle-orm";
 
 const PAGE_SIZE = 20;
 import { decrypt } from "@/lib/auth";
@@ -101,13 +101,24 @@ export default async function UplinkPage({ params }: UplinkPageProps) {
     .where(eq(users.id, otherUserId))
     .limit(1);
 
-  // Fetch last PAGE_SIZE messages for the initial view.
   const lastMessages = await db
     .select()
     .from(messages)
     .where(eq(messages.conversationId, conversationId))
     .orderBy(desc(messages.createdAt))
     .limit(PAGE_SIZE);
+
+  // Mark all unread incoming messages as read
+  await db
+    .update(messages)
+    .set({ isRead: true })
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.isRead, false),
+        ne(messages.senderId, currentUserId),
+      ),
+    );
 
   const history = lastMessages.reverse();
 
