@@ -21,15 +21,24 @@ export async function likeBack(
 
   const currentUserId = session.userId as string;
 
-  // Server-side verification gate — block unverified users regardless of client state.
+  // Server-side verification + suspension gate
   const [me] = await db
-    .select({ verificationStatus: users.verificationStatus })
+    .select({
+      verificationStatus: users.verificationStatus,
+      isSuspended: users.isSuspended,
+    })
     .from(users)
     .where(eq(users.id, currentUserId))
     .limit(1);
 
   if (!me || me.verificationStatus !== "verified") {
     return { error: "Your identity must be verified before you can connect." };
+  }
+
+  if (me.isSuspended) {
+    return {
+      error: "Your account is suspended. You cannot accept likes.",
+    };
   }
 
   const result = await recordLikeAndCheckMatch(currentUserId, likerId);

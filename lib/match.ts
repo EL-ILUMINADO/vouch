@@ -2,6 +2,7 @@ import { db } from "@/db";
 import { likes, conversations, users } from "@/db/schema";
 import { and, or, eq, gte, count } from "drizzle-orm";
 import { notify } from "@/lib/notifications";
+import { adjustTrustScore, TRUST_DELTAS } from "@/lib/trust-score";
 
 const DAILY_HANDSHAKE_LIMIT = 50;
 
@@ -106,6 +107,10 @@ export async function recordLikeAndCheckMatch(
         updatedAt: new Date(),
       })
       .where(eq(conversations.id, closedConvo.id));
+    await Promise.all([
+      adjustTrustScore(likerId, TRUST_DELTAS.MUTUAL_MATCH),
+      adjustTrustScore(likedUserId, TRUST_DELTAS.MUTUAL_MATCH),
+    ]);
     return { matched: true, conversationId: closedConvo.id };
   }
 
@@ -117,6 +122,12 @@ export async function recordLikeAndCheckMatch(
     .limit(1);
 
   if (activeConvo) return { matched: true, conversationId: activeConvo.id };
+
+  // Both users earn trust for a genuine mutual connection
+  await Promise.all([
+    adjustTrustScore(likerId, TRUST_DELTAS.MUTUAL_MATCH),
+    adjustTrustScore(likedUserId, TRUST_DELTAS.MUTUAL_MATCH),
+  ]);
 
   // Create a brand-new conversation
   const [newConvo] = await db

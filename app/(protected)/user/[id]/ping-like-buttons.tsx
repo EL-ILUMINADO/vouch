@@ -14,8 +14,9 @@ export function PingLikeButtons({ userId }: { userId: string }) {
   const handlePing = async () => {
     setPingLoading(true);
     try {
-      const { conversationId } = await pingUser(userId);
-      router.push(`/uplink/${conversationId}`);
+      const result = await pingUser(userId);
+      if ("error" in result) return;
+      router.push(`/uplink/${result.conversationId}`);
     } finally {
       setPingLoading(false);
     }

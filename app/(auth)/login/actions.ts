@@ -2,11 +2,13 @@
 
 import { z } from "zod";
 import { db } from "@/db";
-import { users } from "@/db/schema";
+import { users, bannedDevices } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { createSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
+import { randomUUID } from "crypto";
 
 const loginSchema = z.object({
   email: z.string().email("Invalid institutional email format."),
@@ -35,6 +37,25 @@ export async function loginUser(
   const { email, password } = parseResult.data;
 
   try {
+    const cookieStore = await cookies();
+    const existingDeviceId = cookieStore.get("vouch_device")?.value;
+
+    // Check if this device is banned before even looking up the user
+    if (existingDeviceId) {
+      const [bannedDevice] = await db
+        .select({ id: bannedDevices.id })
+        .from(bannedDevices)
+        .where(eq(bannedDevices.deviceId, existingDeviceId))
+        .limit(1);
+
+      if (bannedDevice) {
+        return {
+          error:
+            "Access from this device has been permanently revoked. Contact support if you believe this is a mistake.",
+        };
+      }
+    }
+
     const [user] = await db
       .select()
       .from(users)
@@ -45,10 +66,38 @@ export async function loginUser(
       return { error: "Invalid credentials or unauthorized access." };
     }
 
+    if (user.isBanned) {
+      return {
+        error:
+          "This account has been permanently banned for violating community guidelines.",
+      };
+    }
+
     const isValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isValid) {
       return { error: "Invalid credentials or unauthorized access." };
+    }
+
+    // Assign or reuse a persistent device fingerprint
+    const deviceId = existingDeviceId ?? randomUUID();
+
+    if (!existingDeviceId) {
+      cookieStore.set("vouch_device", deviceId, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+        path: "/",
+      });
+    }
+
+    // Keep device ID on the user record so banning can reference it
+    if (user.deviceId !== deviceId) {
+      await db
+        .update(users)
+        .set({ deviceId, updatedAt: new Date() })
+        .where(eq(users.id, user.id));
     }
 
     const isVerified = user.verificationStatus === "verified";

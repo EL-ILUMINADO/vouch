@@ -2,11 +2,12 @@
 
 import { z } from "zod";
 import { db } from "@/db";
-import { users, vouchCodes } from "@/db/schema";
+import { users, vouchCodes, bannedEmails, bannedDevices } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { createSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
 
 function generateVouchCode(): string {
@@ -76,7 +77,38 @@ export async function registerUser(
   const data = parseResult.data;
 
   try {
-    // 1. Check for the DEV Master Key FIRST
+    const cookieStore = await cookies();
+    const deviceId = cookieStore.get("vouch_device")?.value;
+
+    // 1. Check if this device is permanently banned
+    if (deviceId) {
+      const [bannedDevice] = await db
+        .select({ id: bannedDevices.id })
+        .from(bannedDevices)
+        .where(eq(bannedDevices.deviceId, deviceId))
+        .limit(1);
+
+      if (bannedDevice) {
+        return {
+          error: "Registration from this device has been permanently revoked.",
+        };
+      }
+    }
+
+    // 2. Check if this email is permanently banned
+    const [bannedEmail] = await db
+      .select({ id: bannedEmails.id })
+      .from(bannedEmails)
+      .where(eq(bannedEmails.email, data.email))
+      .limit(1);
+
+    if (bannedEmail) {
+      return {
+        error: "This email address is not eligible for registration on Vouch.",
+      };
+    }
+
+    // 3. Check for the DEV Master Key FIRST
     const masterCode = process.env.MASTER_VOUCH_CODE;
     const isMasterKey = !!masterCode && data.vouchCode === masterCode;
 

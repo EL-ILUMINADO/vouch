@@ -95,9 +95,11 @@ export const users = pgTable("users", {
   captchaLockedUntil: timestamp("captcha_locked_until", { mode: "date" }),
 
   // Moderation
-  trustScore: integer("trust_score").default(0).notNull(),
+  trustScore: integer("trust_score").default(40).notNull(),
   isBanned: boolean("is_banned").default(false).notNull(),
+  isSuspended: boolean("is_suspended").default(false).notNull(),
   warningCount: integer("warning_count").default(0).notNull(),
+  deviceId: text("device_id"),
 
   // Presence
   lastActiveAt: timestamp("last_active_at"),
@@ -303,6 +305,23 @@ export const reportReasonEnum = pgEnum("report_reason", [
   "spam",
   "other",
 ]);
+
+// ─── Banned Devices ───────────────────────────────────────────────────────────
+export const bannedDevices = pgTable("banned_devices", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  deviceId: text("device_id").unique().notNull(),
+  userId: uuid("user_id")
+    .references(() => users.id)
+    .notNull(),
+  bannedAt: timestamp("banned_at").defaultNow().notNull(),
+});
+
+// ─── Banned Emails ────────────────────────────────────────────────────────────
+export const bannedEmails = pgTable("banned_emails", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").unique().notNull(),
+  bannedAt: timestamp("banned_at").defaultNow().notNull(),
+});
 
 export const reports = pgTable("reports", {
   id: uuid("id").primaryKey().defaultRandom(),

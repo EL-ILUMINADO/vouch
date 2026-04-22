@@ -1,19 +1,26 @@
 import type { Metadata } from "next";
 import { db } from "@/db";
-import { users, vouchCodes } from "@/db/schema";
+import { users, vouchCodes, notifications } from "@/db/schema";
 
 export const metadata: Metadata = {
   title: "Profile",
   description: "Manage your Vouch profile, settings, and notifications.",
 };
-import { eq } from "drizzle-orm";
+import { eq, and, count } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { NotificationToggle } from "@/components/NotificationToggle";
 import Link from "next/link";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Bell } from "lucide-react";
+import {
+  getTrustTier,
+  TRUST_TIER_LABELS,
+  TRUST_TIER_COLORS,
+  TRUST_TIER_BAR,
+  TRUST_DELTAS,
+} from "@/lib/trust-score";
 import {
   LogoutButton,
   DeleteAccountButton,
@@ -69,6 +76,8 @@ export default async function ProfilePage() {
       interests: users.interests,
       // JSONB catch-all for remaining answers
       onboardingAnswers: users.onboarding_answers,
+      // Trust
+      trustScore: users.trustScore,
     })
     .from(users)
     .where(eq(users.id, session.userId))
@@ -76,15 +85,26 @@ export default async function ProfilePage() {
 
   if (!user) redirect("/login");
 
-  const userCodes = await db
-    .select({
-      id: vouchCodes.id,
-      code: vouchCodes.code,
-      isUsed: vouchCodes.isUsed,
-      isPublic: vouchCodes.isPublic,
-    })
-    .from(vouchCodes)
-    .where(eq(vouchCodes.issuerId, user.id));
+  const [userCodes, unreadResult] = await Promise.all([
+    db
+      .select({
+        id: vouchCodes.id,
+        code: vouchCodes.code,
+        isUsed: vouchCodes.isUsed,
+        isPublic: vouchCodes.isPublic,
+      })
+      .from(vouchCodes)
+      .where(eq(vouchCodes.issuerId, user.id)),
+
+    db
+      .select({ count: count() })
+      .from(notifications)
+      .where(
+        and(eq(notifications.userId, user.id), eq(notifications.isRead, false)),
+      ),
+  ]);
+
+  const unreadCount = unreadResult[0]?.count ?? 0;
 
   const uniName =
     SUPPORTED_UNIVERSITIES.find((u) => u.id === user.university)?.name ??
@@ -93,6 +113,32 @@ export default async function ProfilePage() {
   return (
     <main className="min-h-screen bg-background pb-24 p-6">
       <div className="max-w-md mx-auto space-y-8">
+        {/* Unread notifications banner */}
+        {unreadCount > 0 && (
+          <Link
+            href="/notifications"
+            className="flex items-center justify-between gap-3 bg-rose-500/10 border border-rose-500/25 rounded-2xl px-4 py-3 hover:bg-rose-500/15 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-rose-500/15 flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4 text-rose-500" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-foreground">
+                  {unreadCount} unread notification
+                  {unreadCount !== 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Tap to read your activity
+                </p>
+              </div>
+            </div>
+            <span className="text-rose-500 text-xs font-black uppercase tracking-widest shrink-0">
+              View →
+            </span>
+          </Link>
+        )}
+
         {/* Profile Card + Photo Management (shared client state for instant avatar updates) */}
         <ProfileCard
           name={user.name}
@@ -139,6 +185,119 @@ export default async function ProfilePage() {
               ?.happiness_trigger ?? null
           }
         />
+
+        {/* Trust Score */}
+        {(() => {
+          const score = user.trustScore;
+          const tier = getTrustTier(score);
+          const label = TRUST_TIER_LABELS[tier];
+          const barColor = TRUST_TIER_BAR[tier];
+          const textColor = TRUST_TIER_COLORS[tier];
+
+          const gains: { label: string; delta: number }[] = [
+            { label: "Upload first photo", delta: TRUST_DELTAS.FIRST_PHOTO },
+            { label: "Set bio headline", delta: TRUST_DELTAS.BIO_SET },
+            { label: "Add interests", delta: TRUST_DELTAS.INTERESTS_SET },
+            {
+              label: "Complete vibe profile",
+              delta: TRUST_DELTAS.VIBE_COMPLETE,
+            },
+            {
+              label: "Identity verified",
+              delta: TRUST_DELTAS.VERIFICATION_APPROVED,
+            },
+            { label: "Mutual handshake", delta: TRUST_DELTAS.MUTUAL_MATCH },
+          ];
+          const losses: { label: string; delta: number }[] = [
+            {
+              label: "Reported by another user",
+              delta: TRUST_DELTAS.REPORT_RECEIVED,
+            },
+            { label: "Warning from admin", delta: TRUST_DELTAS.WARNING_ISSUED },
+            { label: "Account suspended", delta: TRUST_DELTAS.SUSPENDED },
+          ];
+
+          return (
+            <section className="space-y-4">
+              <h3 className="text-sm font-black text-foreground uppercase tracking-widest px-2">
+                Trust Score
+              </h3>
+
+              {/* Score card */}
+              <div className="bg-card border border-border rounded-3xl p-5 space-y-4">
+                <div className="flex items-end justify-between">
+                  <div>
+                    <p className={`text-4xl font-black ${textColor}`}>
+                      {score}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mt-0.5">
+                      out of 100
+                    </p>
+                  </div>
+                  <span
+                    className={`text-sm font-black uppercase tracking-widest px-3 py-1 rounded-full border ${textColor} border-current/30`}
+                  >
+                    {label}
+                  </span>
+                </div>
+
+                {/* Progress bar */}
+                <div className="h-2 w-full bg-muted rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${barColor}`}
+                    style={{ width: `${score}%` }}
+                  />
+                </div>
+
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Your trust score reflects how you engage on Vouch. It goes up
+                  when you connect genuinely and down when you behave in ways
+                  that harm others.
+                </p>
+
+                {/* Gains & losses table */}
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-emerald-500">
+                      How you gain
+                    </p>
+                    {gains.map((g) => (
+                      <div
+                        key={g.label}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <p className="text-xs text-muted-foreground">
+                          {g.label}
+                        </p>
+                        <span className="text-[10px] font-black text-emerald-500 shrink-0">
+                          +{g.delta}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-red-400">
+                      How you lose
+                    </p>
+                    {losses.map((l) => (
+                      <div
+                        key={l.label}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <p className="text-xs text-muted-foreground">
+                          {l.label}
+                        </p>
+                        <span className="text-[10px] font-black text-red-400 shrink-0">
+                          {l.delta}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        })()}
 
         {/* Vouch Code Management */}
         <section className="space-y-4">

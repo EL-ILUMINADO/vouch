@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { users, platformMessages } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
+import { adjustTrustScore, TRUST_DELTAS } from "@/lib/trust-score";
 
 export async function approveVerification(
   userId: string,
@@ -17,6 +18,8 @@ export async function approveVerification(
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
+
+    await adjustTrustScore(userId, TRUST_DELTAS.VERIFICATION_APPROVED);
 
     await db.insert(platformMessages).values({
       recipientId: userId,

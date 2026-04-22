@@ -36,6 +36,7 @@ export async function sendRadarPing(targetUserId: string) {
       radarPings: users.radarPings,
       pingsResetAt: users.pingsResetAt,
       verificationStatus: users.verificationStatus,
+      isSuspended: users.isSuspended,
     })
     .from(users)
     .where(eq(users.id, currentUserId))
@@ -45,6 +46,10 @@ export async function sendRadarPing(targetUserId: string) {
 
   if (currentUser.verificationStatus !== "verified") {
     throw new Error("Your identity must be verified before you can connect.");
+  }
+
+  if (currentUser.isSuspended) {
+    throw new Error("Your account is suspended. You cannot send radar pings.");
   }
 
   const now = new Date();

@@ -17,6 +17,7 @@ import { eq, desc, or, and, lt } from "drizzle-orm";
 import { recordLikeAndCheckMatch } from "@/lib/match";
 import { revalidatePath } from "next/cache";
 import { sendPushToUser } from "@/lib/push";
+import { adjustTrustScore, TRUST_DELTAS } from "@/lib/trust-score";
 
 /**
  * Block a user. Severs the active conversation, cancels pending radar requests,
@@ -414,6 +415,8 @@ export async function reportUser(
       description: description || null,
       messageSnapshot: snapshot,
     });
+
+    await adjustTrustScore(reportedUserId, TRUST_DELTAS.REPORT_RECEIVED);
 
     return { success: true };
   } catch (err) {
