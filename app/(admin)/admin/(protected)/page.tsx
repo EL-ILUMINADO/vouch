@@ -2,6 +2,8 @@ import { db } from "@/db";
 import { users, reports } from "@/db/schema";
 import { eq, count } from "drizzle-orm";
 
+export const dynamic = "force-dynamic";
+
 async function getStats() {
   const [
     [{ total: totalUsers }],

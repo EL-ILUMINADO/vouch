@@ -4,6 +4,8 @@ import { desc } from "drizzle-orm";
 import { Button } from "@/components/ui/button";
 import { dismissReport, markReportReviewed, banReportedUser } from "./actions";
 
+export const dynamic = "force-dynamic";
+
 const STATUS_BADGE: Record<string, string> = {
   pending: "bg-amber-900/50 text-amber-400 border-amber-800",
   reviewed: "bg-blue-900/50 text-blue-400 border-blue-800",
