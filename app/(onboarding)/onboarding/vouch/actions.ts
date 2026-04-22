@@ -191,5 +191,5 @@ export async function registerUser(
     return { error: "Structural failure during account provisioning." };
   }
 
-  redirect("/onboarding/verify");
+  redirect("/onboarding/location");
 }

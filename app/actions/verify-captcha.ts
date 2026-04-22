@@ -5,6 +5,19 @@ import { users } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import { decrypt } from "@/lib/auth";
 import { cookies } from "next/headers";
+import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
+
+function campusJitter(center: { lat: number; lng: number }) {
+  const distKm = 0.6 + Math.random() * 0.5;
+  const angle = Math.random() * 2 * Math.PI;
+  return {
+    lat: center.lat + (distKm / 111.0) * Math.cos(angle),
+    lng:
+      center.lng +
+      (distKm / (111.0 * Math.cos((center.lat * Math.PI) / 180))) *
+        Math.sin(angle),
+  };
+}
 
 export type CaptchaVerifyResult =
   | { success: true }
@@ -32,8 +45,11 @@ export async function verifyCaptcha(
     const [user] = await db
       .select({
         id: users.id,
+        university: users.university,
         verificationStatus: users.verificationStatus,
         captchaLockedUntil: users.captchaLockedUntil,
+        latitude: users.latitude,
+        longitude: users.longitude,
       })
       .from(users)
       .where(eq(users.id, session.userId))
@@ -57,11 +73,27 @@ export async function verifyCaptcha(
       // Culture check confirms campus knowledge — record the method but do NOT
       // mark the user as "verified". Liveness video + admin review does that.
       // The user continues onboarding: photos → interests → bio → liveness.
+
+      // Seed lat/lng so the user appears on Radar (GPS verification was removed).
+      // Jitter within 0.6–1.1 km of campus center: keeps each user at a distinct
+      // visual ring position rather than collapsing everyone to distance 0.
+      const uniCenter = SUPPORTED_UNIVERSITIES.find(
+        (u) => u.id === user.university,
+      )?.coordinates;
+
+      const jitteredCoords =
+        uniCenter && !user.latitude && !user.longitude
+          ? campusJitter(uniCenter)
+          : null;
+
       await db
         .update(users)
         .set({
           verificationMethod: "culture_check",
           captchaLockedUntil: null,
+          ...(jitteredCoords
+            ? { latitude: jitteredCoords.lat, longitude: jitteredCoords.lng }
+            : {}),
           updatedAt: new Date(),
         })
         .where(eq(users.id, user.id));

@@ -44,22 +44,23 @@ export async function scanImage(
         Sexy: `${(sexy * 100).toFixed(1)}%`,
       });
 
-      // Reject artwork/illustrations — real student photos should score low on
-      // Drawing. Anything ≥ 40% is almost certainly anime, manga, or cartoon art.
-      if (drawing >= 0.4)
+      // Reject obvious artwork/illustrations. Threshold is high (85%) because
+      // real photos taken indoors or with older phones can score 50-65% on Drawing
+      // due to compression artifacts and lighting — those are false positives.
+      if (drawing >= 0.85 && neutral < 0.25)
         return resolve({
           isSafe: false,
           reason: `Not a real photo — appears to be artwork or illustration (${(drawing * 100).toFixed(0)}% confidence)`,
         });
 
-      // Hard explicit checks — 20% threshold gives the model enough room to
+      // Hard explicit checks — 30% threshold gives the model enough room to
       // stop flagging beach/gym photos while still catching genuine violations.
-      if (porn >= 0.2)
+      if (porn >= 0.3)
         return resolve({
           isSafe: false,
           reason: `Explicit content detected (${(porn * 100).toFixed(0)}% confidence)`,
         });
-      if (hentai >= 0.2)
+      if (hentai >= 0.3)
         return resolve({
           isSafe: false,
           reason: `Explicit illustrated content detected (${(hentai * 100).toFixed(0)}% confidence)`,

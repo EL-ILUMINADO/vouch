@@ -25,6 +25,24 @@ export function VouchForm() {
       action={action}
       className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-8"
     >
+      <div className="md:col-span-2">
+        <div className="flex items-start gap-3 rounded-2xl border border-rose-200 dark:border-rose-800/50 bg-rose-50 dark:bg-rose-950/30 px-4 py-3">
+          <span className="text-rose-500 mt-0.5 shrink-0 text-base leading-none">
+            🔑
+          </span>
+          <p className="text-sm text-rose-700 dark:text-rose-300 leading-relaxed">
+            Need a vouch code?{" "}
+            <Link
+              href="/codes"
+              target="_blank"
+              className="font-bold underline underline-offset-2 hover:text-rose-600 dark:hover:text-rose-200 transition-colors"
+            >
+              Visit the public codes board
+            </Link>{" "}
+            to find and copy one — anyone can grab an available code.
+          </p>
+        </div>
+      </div>
       <div className="space-y-6">
         <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground border-b border-border pb-2">
           01. Security
@@ -33,13 +51,6 @@ export function VouchForm() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="vouchCode">Vouch Code</Label>
-              <Link
-                href="/codes"
-                target="_blank"
-                className="text-[10px] font-bold text-rose-500 hover:text-rose-600 transition-colors"
-              >
-                No code? Browse the board →
-              </Link>
             </div>
             <Input
               id="vouchCode"
@@ -50,7 +61,7 @@ export function VouchForm() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="email">Institution Email</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               name="email"
@@ -59,9 +70,12 @@ export function VouchForm() {
               required
               disabled={isPending}
             />
+            <p className="text-[11px] text-muted-foreground">
+              Your school email or a personal email — either works.
+            </p>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="password">Passphrase</Label>
+            <Label htmlFor="password">Password</Label>
             <Input
               id="password"
               name="password"

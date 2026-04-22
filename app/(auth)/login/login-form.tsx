@@ -19,7 +19,7 @@ export function LoginForm() {
             htmlFor="email"
             className="uppercase text-xs font-bold tracking-widest text-muted-foreground"
           >
-            Institution Email
+            Email
           </Label>
           <Input
             id="email"
@@ -30,6 +30,10 @@ export function LoginForm() {
             disabled={isPending}
             className="h-14 text-lg bg-transparent border-t-0 border-x-0 border-b-2 border-border rounded-none focus-visible:ring-0 focus-visible:border-foreground px-0 transition-colors disabled:opacity-50"
           />
+          <p className="text-[11px] text-muted-foreground">
+            Use your school email or personal email — whichever you signed up
+            with.
+          </p>
         </div>
 
         <div className="space-y-2">
@@ -38,7 +42,7 @@ export function LoginForm() {
               htmlFor="password"
               className="uppercase text-xs font-bold tracking-widest text-muted-foreground"
             >
-              Passphrase
+              Password
             </Label>
           </div>
           <Input

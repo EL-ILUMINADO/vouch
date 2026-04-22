@@ -68,6 +68,10 @@ export const users = pgTable("users", {
   // Catch-all for the remaining 20+ answers to keep schema clean
   onboarding_answers: jsonb("onboarding_answers").default({}),
 
+  // Where the user lives — set during onboarding location step
+  city: text("city"),
+  neighborhood: text("neighborhood"),
+
   // Coordinates for the 3.5km domain
   latitude: doublePrecision("latitude"),
   longitude: doublePrecision("longitude"),

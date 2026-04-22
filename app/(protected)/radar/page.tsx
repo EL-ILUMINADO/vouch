@@ -16,8 +16,6 @@ import { RadarDisplay } from "./radar-display";
 import { RadarGate } from "@/components/radar/RadarGate";
 import {
   SUPPORTED_UNIVERSITIES,
-  RADAR_MIN_KM,
-  RADAR_MAX_KM,
   RADAR_MAX_SIGNALS,
 } from "@/lib/constants/universities";
 import type { RadarSignal, RadarRequestState } from "@/types/radar";
@@ -82,7 +80,7 @@ export default async function RadarPage() {
         <h1 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight mb-2">
           Radar Cooling Down
         </h1>
-        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 max-w-[280px]">
+        <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mb-8 max-w-70">
           You&apos;ve used all 10 direct pings for this week. Head over to
           Discover to keep networking.
         </p>
@@ -150,8 +148,6 @@ export default async function RadarPage() {
         ),
         sql`${users.latitude} IS NOT NULL`,
         sql`${users.longitude} IS NOT NULL`,
-        sql`${distanceSql} >= ${RADAR_MIN_KM}`,
-        sql`${distanceSql} <= ${RADAR_MAX_KM}`,
       ),
     )
     .limit(RADAR_MAX_SIGNALS);
