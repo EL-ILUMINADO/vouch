@@ -1,6 +1,6 @@
 "use server";
 
-import { conversations } from "@/db/schema";
+import { conversations, users } from "@/db/schema";
 import { db } from "@/db";
 import { and, or, eq } from "drizzle-orm";
 import { cookies } from "next/headers";
@@ -16,6 +16,7 @@ export async function recordLike(likedUserId: string): Promise<{
   matched: boolean;
   conversationId?: string;
   limitReached?: boolean;
+  error?: string;
 }> {
   const cookieStore = await cookies();
   const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
@@ -23,6 +24,19 @@ export async function recordLike(likedUserId: string): Promise<{
 
   const likerId = session.userId as string;
   if (likerId === likedUserId) return { matched: false };
+
+  const [me] = await db
+    .select({ isSuspended: users.isSuspended })
+    .from(users)
+    .where(eq(users.id, likerId))
+    .limit(1);
+
+  if (me?.isSuspended) {
+    return {
+      matched: false,
+      error: "Your account is suspended. You cannot like other users.",
+    };
+  }
 
   return recordLikeAndCheckMatch(likerId, likedUserId);
 }
@@ -33,12 +47,22 @@ export async function recordLike(likedUserId: string): Promise<{
  */
 export async function pingUser(
   otherUserId: string,
-): Promise<{ conversationId: string }> {
+): Promise<{ conversationId: string } | { error: string }> {
   const cookieStore = await cookies();
   const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
   if (!session) redirect("/");
 
   const userId = session.userId as string;
+
+  const [me] = await db
+    .select({ isSuspended: users.isSuspended })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  if (me?.isSuspended) {
+    return { error: "Your account is suspended. You cannot ping other users." };
+  }
 
   const existing = await db
     .select({ id: conversations.id })

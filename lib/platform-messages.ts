@@ -4,6 +4,13 @@ import { db } from "@/db";
 import { platformMessages, notifications, users } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { sendPushToUser } from "./push";
+import {
+  ADMIN_WARNING_COPY,
+  SUSPENSION_COPY,
+  UNSUSPENSION_COPY,
+  ADMIN_BAN_COPY,
+  REPORT_WARNING_COPY,
+} from "./moderation-copy";
 
 type MessageType = "warning" | "promotion" | "announcement";
 
@@ -73,14 +80,29 @@ export async function sendPlatformMessageToAll(
   );
 }
 
-const WARNING_COPY: Record<number, string> = {
-  1: "Your account was reported for violating community guidelines. Please ensure you keep to our community guidelines to keep the platform safe for everyone.\n\n⚠️ This is your 1st warning. You have 2 more warnings before your account is permanently banned.",
-  2: "Your account has received another report for violating community guidelines. We take platform safety very seriously.\n\n⚠️ This is your 2nd warning. You have 1 more warning before your account is permanently banned.",
-  3: "Your account has been permanently banned for repeatedly violating Vouch community guidelines. This decision is final.",
-};
+export async function adminIssueWarning(userId: string): Promise<number> {
+  const [updated] = await db
+    .update(users)
+    .set({
+      warningCount: sql`${users.warningCount} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId))
+    .returning({ warningCount: users.warningCount });
 
-const BAN_COPY =
-  "Your account has been permanently banned by our moderation team for violating community guidelines. This decision is final.";
+  const count = updated.warningCount;
+  const copy = ADMIN_WARNING_COPY[count] ?? ADMIN_WARNING_COPY[3];
+  await sendPlatformMessage(userId, copy, "warning");
+  return count;
+}
+
+export async function sendSuspensionNotice(userId: string): Promise<void> {
+  await sendPlatformMessage(userId, SUSPENSION_COPY, "warning");
+}
+
+export async function sendUnsuspensionNotice(userId: string): Promise<void> {
+  await sendPlatformMessage(userId, UNSUSPENSION_COPY, "announcement");
+}
 
 export async function issueWarning(reportedUserId: string): Promise<number> {
   const [updated] = await db
@@ -93,7 +115,7 @@ export async function issueWarning(reportedUserId: string): Promise<number> {
     .returning({ warningCount: users.warningCount });
 
   const count = updated.warningCount;
-  const copy = WARNING_COPY[count] ?? WARNING_COPY[3];
+  const copy = REPORT_WARNING_COPY[count] ?? REPORT_WARNING_COPY[3];
 
   await sendPlatformMessage(reportedUserId, copy, "warning");
 
@@ -112,5 +134,5 @@ export async function issueWarning(reportedUserId: string): Promise<number> {
 }
 
 export async function sendBanNotice(reportedUserId: string): Promise<void> {
-  await sendPlatformMessage(reportedUserId, BAN_COPY, "warning");
+  await sendPlatformMessage(reportedUserId, ADMIN_BAN_COPY, "warning");
 }

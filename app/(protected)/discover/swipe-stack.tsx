@@ -140,8 +140,9 @@ export function SwipeStack({
   const handlePing = async (peerId: string) => {
     setPinging(true);
     try {
-      const { conversationId } = await pingUser(peerId);
-      router.push(`/uplink/${conversationId}`);
+      const result = await pingUser(peerId);
+      if ("error" in result) return;
+      router.push(`/uplink/${result.conversationId}`);
     } finally {
       setPinging(false);
     }

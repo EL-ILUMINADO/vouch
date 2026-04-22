@@ -17,6 +17,8 @@ async function getAllUsers() {
       profileImage: users.profileImage,
       verificationStatus: users.verificationStatus,
       isBanned: users.isBanned,
+      isSuspended: users.isSuspended,
+      warningCount: users.warningCount,
       createdAt: users.createdAt,
     })
     .from(users)

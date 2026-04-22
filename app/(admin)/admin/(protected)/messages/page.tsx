@@ -1,28 +1,18 @@
 import { db } from "@/db";
-import { users, platformMessages } from "@/db/schema";
+import { users } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import { ComposeForm } from "./compose-form";
+import { MessagesLog } from "./messages-log";
 import Link from "next/link";
 import { UserPlus } from "lucide-react";
 import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
 
 async function getData() {
-  const [allUsers, recentMessages, recentlyJoined] = await Promise.all([
+  const [allUsers, recentlyJoined] = await Promise.all([
     db
       .select({ id: users.id, name: users.name, email: users.email })
       .from(users)
       .orderBy(users.name),
-    db
-      .select({
-        id: platformMessages.id,
-        type: platformMessages.type,
-        content: platformMessages.content,
-        createdAt: platformMessages.createdAt,
-        recipientId: platformMessages.recipientId,
-      })
-      .from(platformMessages)
-      .orderBy(desc(platformMessages.createdAt))
-      .limit(30),
     db
       .select({
         id: users.id,
@@ -37,23 +27,8 @@ async function getData() {
       .limit(10),
   ]);
 
-  const userMap = new Map(allUsers.map((u) => [u.id, u]));
-
-  return {
-    users: allUsers,
-    recentMessages: recentMessages.map((m) => ({
-      ...m,
-      recipient: userMap.get(m.recipientId),
-    })),
-    recentlyJoined,
-  };
+  return { users: allUsers, recentlyJoined };
 }
-
-const TYPE_BADGE: Record<string, string> = {
-  warning: "bg-red-900/50 text-red-400 border-red-800",
-  promotion: "bg-blue-900/50 text-blue-400 border-blue-800",
-  announcement: "bg-zinc-700/50 text-zinc-300 border-zinc-600",
-};
 
 function timeAgo(date: Date | string) {
   const ms = Date.now() - new Date(date).getTime();
@@ -69,7 +44,7 @@ export default async function AdminMessagesPage({
 }: {
   searchParams: Promise<{ welcome?: string }>;
 }) {
-  const { users: allUsers, recentMessages, recentlyJoined } = await getData();
+  const { users: allUsers, recentlyJoined } = await getData();
   const { welcome } = await searchParams;
 
   return (
@@ -96,6 +71,7 @@ export default async function AdminMessagesPage({
           />
         </div>
 
+        {/* Right column */}
         <div className="space-y-8">
           {/* Recently joined */}
           <div className="space-y-3">
@@ -149,43 +125,10 @@ export default async function AdminMessagesPage({
             )}
           </div>
 
-          {/* Recent messages sent */}
+          {/* Message log — infinite scroll */}
           <div className="space-y-3">
-            <h2 className="text-base font-bold text-white">
-              Recent ({recentMessages.length})
-            </h2>
-            {recentMessages.length === 0 ? (
-              <p className="text-zinc-500 text-sm">No messages sent yet.</p>
-            ) : (
-              recentMessages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className="bg-zinc-800/40 border border-zinc-700/40 rounded-xl p-4 space-y-1.5"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full border uppercase tracking-wider ${TYPE_BADGE[msg.type] ?? ""}`}
-                      >
-                        {msg.type}
-                      </span>
-                      <span className="text-xs text-zinc-400">
-                        → {msg.recipient?.name ?? "All Users"}
-                      </span>
-                    </div>
-                    <span className="text-zinc-600 text-xs shrink-0">
-                      {new Date(msg.createdAt).toLocaleDateString("en-NG", {
-                        day: "numeric",
-                        month: "short",
-                      })}
-                    </span>
-                  </div>
-                  <p className="text-sm text-zinc-300 whitespace-pre-line line-clamp-3">
-                    {msg.content}
-                  </p>
-                </div>
-              ))
-            )}
+            <h2 className="text-base font-bold text-white">Message Log</h2>
+            <MessagesLog />
           </div>
         </div>
       </div>

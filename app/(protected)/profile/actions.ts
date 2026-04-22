@@ -10,6 +10,7 @@ import {
   pushSubscriptions,
 } from "@/db/schema";
 import { eq, or, and } from "drizzle-orm";
+import { adjustTrustScore, TRUST_DELTAS } from "@/lib/trust-score";
 import { decrypt } from "@/lib/auth";
 import { cloudinary } from "@/lib/cloudinary";
 import { cookies } from "next/headers";
@@ -42,6 +43,24 @@ async function requireSession() {
   const session = await decrypt(token);
   if (!session) redirect("/login");
   return session.userId as string;
+}
+
+// Returns an error object if the user is suspended, null otherwise.
+async function checkSuspension(
+  userId: string,
+): Promise<{ error: string } | null> {
+  const [user] = await db
+    .select({ isSuspended: users.isSuspended })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  if (!user) return { error: "Account not found." };
+  if (user.isSuspended)
+    return {
+      error:
+        "Your account is suspended. Profile edits are not allowed during a suspension.",
+    };
+  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,6 +167,8 @@ export async function setProfilePhoto(
   imageUrl: string,
 ): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
 
   try {
     const [user] = await db
@@ -176,6 +197,8 @@ export async function deletePhoto(
   imageUrl: string,
 ): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
 
   try {
     const [user] = await db
@@ -222,6 +245,8 @@ export async function toggleHideLevel(
   hideLevel: boolean,
 ): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
   try {
     await db
       .update(users)
@@ -237,6 +262,8 @@ export async function toggleRadarVisible(
   isRadarVisible: boolean,
 ): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
   try {
     await db
       .update(users)
@@ -269,16 +296,31 @@ export async function toggleCodePublic(
 
 export async function updateBio(bio: string): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
 
   const trimmed = bio.trim();
   if (trimmed.length > 300)
     return { error: "Bio must be 300 characters or less." };
 
   try {
+    const [current] = await db
+      .select({ bio_headline: users.bio_headline })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    const wasEmpty = !current?.bio_headline;
+
     await db
       .update(users)
       .set({ bio_headline: trimmed || null, updatedAt: new Date() })
       .where(eq(users.id, userId));
+
+    if (wasEmpty && trimmed) {
+      await adjustTrustScore(userId, TRUST_DELTAS.BIO_SET);
+    }
+
     return {};
   } catch {
     return { error: "Failed to update bio. Please try again." };
@@ -289,14 +331,29 @@ export async function updateInterests(
   interests: string[],
 ): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
 
   if (interests.length < 3) return { error: "Pick at least 3 interests." };
 
   try {
+    const [current] = await db
+      .select({ interests: users.interests })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    const wasEmpty = (current?.interests ?? []).length === 0;
+
     await db
       .update(users)
       .set({ interests, updatedAt: new Date() })
       .where(eq(users.id, userId));
+
+    if (wasEmpty) {
+      await adjustTrustScore(userId, TRUST_DELTAS.INTERESTS_SET);
+    }
+
     return {};
   } catch {
     return { error: "Failed to save interests. Please try again." };
@@ -307,6 +364,8 @@ export async function addPhoto(
   base64: string,
 ): Promise<{ error?: string; url?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
 
   try {
     const [user] = await db
@@ -326,10 +385,16 @@ export async function addPhoto(
       resource_type: "image",
     });
 
+    const isFirstPhoto = current.length === 0;
+
     await db
       .update(users)
       .set({ images: [...current, result.secure_url] })
       .where(eq(users.id, userId));
+
+    if (isFirstPhoto) {
+      await adjustTrustScore(userId, TRUST_DELTAS.FIRST_PHOTO);
+    }
 
     return { url: result.secure_url };
   } catch (err) {
@@ -351,7 +416,32 @@ export async function updateVibeFields(fields: {
   conflictStyle: string | null;
 }): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
   try {
+    const [current] = await db
+      .select({
+        intent: users.intent,
+        social_energy: users.social_energy,
+        energy_vibe: users.energy_vibe,
+        relationship_style: users.relationship_style,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+
+    // Award +5 the first time all 4 core vibe fields go from incomplete to complete
+    const wasIncomplete =
+      !current?.intent ||
+      !current?.social_energy ||
+      !current?.energy_vibe ||
+      !current?.relationship_style;
+    const nowComplete =
+      !!fields.intent &&
+      !!fields.socialEnergy &&
+      !!fields.energyVibe &&
+      !!fields.relationshipStyle;
+
     await db
       .update(users)
       .set({
@@ -363,6 +453,11 @@ export async function updateVibeFields(fields: {
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId));
+
+    if (wasIncomplete && nowComplete) {
+      await adjustTrustScore(userId, TRUST_DELTAS.VIBE_COMPLETE);
+    }
+
     return {};
   } catch {
     return { error: "Failed to update. Please try again." };
@@ -380,6 +475,8 @@ export async function updateDeepDives(fields: {
   relationshipVision: string | null;
 }): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
   try {
     await db
       .update(users)
@@ -405,6 +502,8 @@ export async function updatePrompt(fields: {
   promptAnswer: string | null;
 }): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
 
   if (fields.promptAnswer && fields.promptAnswer.trim().length > 120)
     return { error: "Answer must be 120 characters or less." };
@@ -432,6 +531,8 @@ export async function updateOnboardingAnswers(
   updates: Record<string, string | null>,
 ): Promise<{ error?: string }> {
   const userId = await requireSession();
+  const suspended = await checkSuspension(userId);
+  if (suspended) return suspended;
   try {
     const [user] = await db
       .select({ answers: users.onboarding_answers })
