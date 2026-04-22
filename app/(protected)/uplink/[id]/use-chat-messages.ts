@@ -36,7 +36,7 @@ export function useChatMessages(
 
       // Background fire to instantly mark the new incoming message as read
       // so it doesn't leave an unread badge on the chat list when navigating back.
-      import("./actions").then(({ markChatAsRead }) => {
+      import("./actions/message").then(({ markChatAsRead }) => {
         markChatAsRead(conversationId).catch(() => {});
       });
     });

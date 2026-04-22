@@ -6,7 +6,7 @@ import {
   deleteMessage,
   editMessage,
   fetchOlderMessages,
-} from "./actions";
+} from "./actions/message";
 import { useChatMessages } from "./use-chat-messages";
 import { MessageBubble } from "./message-bubble";
 import { MessageContextMenu } from "./message-context-menu";

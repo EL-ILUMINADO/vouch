@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ShieldX, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
-import { blockUser } from "./actions";
+import { blockUser } from "./actions/block";
 
 interface BlockButtonProps {
   conversationId: string;
