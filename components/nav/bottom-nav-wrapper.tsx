@@ -1,7 +1,13 @@
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
 import { db } from "@/db";
-import { users, likes, radarRequests, notifications } from "@/db/schema";
+import {
+  users,
+  likes,
+  radarRequests,
+  notifications,
+  platformMessages,
+} from "@/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { BottomNav } from "./bottom-nav";
 
@@ -15,47 +21,60 @@ export async function BottomNavWrapper() {
 
   const userId = session.userId as string;
 
-  const [likesCount, radarRequestCount, notificationsCount, userData] =
-    await Promise.all([
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(likes)
-        .where(and(eq(likes.likedUserId, userId), eq(likes.status, "pending")))
-        .then((r) => r[0]?.count ?? 0),
+  const [
+    likesCount,
+    chatsCount,
+    radarRequestCount,
+    notificationsCount,
+    userData,
+  ] = await Promise.all([
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(likes)
+      .where(and(eq(likes.likedUserId, userId), eq(likes.status, "pending")))
+      .then((r) => r[0]?.count ?? 0),
 
-      // Pending radar pings sent to me — drives the Radar nav badge.
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(radarRequests)
-        .where(
-          and(
-            eq(radarRequests.receiverId, userId),
-            eq(radarRequests.status, "pending"),
-          ),
-        )
-        .then((r) => r[0]?.count ?? 0),
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(platformMessages)
+      .where(
+        and(
+          eq(platformMessages.recipientId, userId),
+          eq(platformMessages.isRead, false),
+        ),
+      )
+      .then((r) => r[0]?.count ?? 0),
 
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(notifications)
-        .where(
-          and(
-            eq(notifications.userId, userId),
-            eq(notifications.isRead, false),
-          ),
-        )
-        .then((r) => r[0]?.count ?? 0),
+    // Pending radar pings sent to me — drives the Radar nav badge.
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(radarRequests)
+      .where(
+        and(
+          eq(radarRequests.receiverId, userId),
+          eq(radarRequests.status, "pending"),
+        ),
+      )
+      .then((r) => r[0]?.count ?? 0),
 
-      db
-        .select({
-          verificationStatus: users.verificationStatus,
-          requiresPulseCheck: users.requiresPulseCheck,
-        })
-        .from(users)
-        .where(eq(users.id, userId))
-        .limit(1)
-        .then((r) => r[0] ?? null),
-    ]);
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(notifications)
+      .where(
+        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
+      )
+      .then((r) => r[0]?.count ?? 0),
+
+    db
+      .select({
+        verificationStatus: users.verificationStatus,
+        requiresPulseCheck: users.requiresPulseCheck,
+      })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1)
+      .then((r) => r[0] ?? null),
+  ]);
 
   const profileAlert =
     !!userData &&
@@ -66,7 +85,7 @@ export async function BottomNavWrapper() {
   return (
     <BottomNav
       likesCount={likesCount}
-      chatsCount={0}
+      chatsCount={chatsCount}
       radarRequestCount={radarRequestCount}
       notificationsCount={notificationsCount}
       profileAlert={profileAlert}

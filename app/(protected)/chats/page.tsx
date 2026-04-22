@@ -1,5 +1,11 @@
 import { db } from "@/db";
-import { conversations, users, radarRequests, messages } from "@/db/schema";
+import {
+  conversations,
+  users,
+  radarRequests,
+  messages,
+  platformMessages,
+} from "@/db/schema";
 import { eq, or, desc, sql, and, ne, inArray } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { decrypt } from "@/lib/auth";
@@ -13,7 +19,12 @@ export default async function ChatsPage() {
   const session = await decrypt(cookieStore.get("vouch_session")?.value ?? "");
   const currentUserId = session?.userId as string;
 
-  const [userConversations, rawPendingPings] = await Promise.all([
+  const [
+    userConversations,
+    unreadPlatformCount,
+    latestPlatformMsg,
+    rawPendingPings,
+  ] = await Promise.all([
     db
       .select({
         id: conversations.id,
@@ -43,6 +54,28 @@ export default async function ChatsPage() {
         ),
       )
       .orderBy(desc(conversations.updatedAt)),
+
+    db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(platformMessages)
+      .where(
+        and(
+          eq(platformMessages.recipientId, currentUserId),
+          eq(platformMessages.isRead, false),
+        ),
+      )
+      .then((r) => r[0]?.count ?? 0),
+
+    db
+      .select({
+        content: platformMessages.content,
+        createdAt: platformMessages.createdAt,
+      })
+      .from(platformMessages)
+      .where(eq(platformMessages.recipientId, currentUserId))
+      .orderBy(desc(platformMessages.createdAt))
+      .limit(1)
+      .then((r) => r[0] ?? null),
 
     // Incoming radar pings awaiting my response.
     db
@@ -134,7 +167,8 @@ export default async function ChatsPage() {
     }
   }
 
-  const totalConnections = userConversations.length;
+  const totalConnections =
+    userConversations.length + (latestPlatformMsg ? 1 : 0);
 
   return (
     <main className="min-h-screen bg-background">
@@ -161,7 +195,42 @@ export default async function ChatsPage() {
           </div>
         )}
 
-        {userConversations.length === 0 && pendingPings.length === 0 ? (
+        {/* Vouch Platform Inbox — pinned at top if any messages exist */}
+        {latestPlatformMsg && (
+          <Link
+            href="/inbox"
+            className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-zinc-50 dark:bg-zinc-900 border border-border group transition-all active:scale-[0.98]"
+          >
+            <div className="relative w-14 h-14 rounded-full overflow-hidden bg-black flex items-center justify-center shrink-0">
+              <span className="text-white text-xl font-black italic">V</span>
+              {unreadPlatformCount > 0 && (
+                <span className="absolute top-0 right-0 w-3.5 h-3.5 bg-rose-500 rounded-full border-2 border-background animate-pulse" />
+              )}
+            </div>
+            <div className="flex-1 min-w-0 border-b border-border pb-4 group-last:border-0">
+              <div className="flex justify-between items-baseline gap-2">
+                <h3 className="font-bold text-foreground flex items-center gap-1.5 truncate">
+                  Vouch
+                  <span className="text-[9px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 px-1.5 py-0.5 rounded-full">
+                    Platform
+                  </span>
+                </h3>
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-tighter shrink-0">
+                  {new Date(latestPlatformMsg.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <p
+                className={`text-xs truncate mt-0.5 ${unreadPlatformCount > 0 ? "font-bold text-foreground" : "text-muted-foreground font-medium"}`}
+              >
+                {latestPlatformMsg.content}
+              </p>
+            </div>
+          </Link>
+        )}
+
+        {userConversations.length === 0 &&
+        !latestPlatformMsg &&
+        pendingPings.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground/40 space-y-4">
             <MessageSquareOff className="w-12 h-12 stroke-1" />
             <p className="text-sm font-medium">No active handshakes yet.</p>
