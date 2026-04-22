@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Flag } from "lucide-react";
-import { reportUser } from "@/app/(protected)/uplink/[id]/actions";
+import { reportUser } from "@/app/(protected)/uplink/[id]/actions/report";
 
 const REASONS = [
   { value: "harassment", label: "Harassment" },

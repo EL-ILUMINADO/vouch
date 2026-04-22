@@ -176,6 +176,7 @@ export const messages = pgTable("messages", {
   // Soft-delete for one side only
   deletedForSender: boolean("deleted_for_sender").default(false).notNull(),
   deletedForReceiver: boolean("deleted_for_receiver").default(false).notNull(),
+  isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -237,7 +238,7 @@ export const radarRequests = pgTable("radar_requests", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// ─── Blocks ──────────────────────────────────────────────────────────────────
+// Blocks
 export const blocks = pgTable(
   "blocks",
   {
@@ -258,7 +259,7 @@ export const blocks = pgTable(
   ],
 );
 
-// ─── Push Subscriptions ───────────────────────────────────────────────────────
+// Push Subscriptions
 export const pushSubscriptions = pgTable("push_subscriptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id")
@@ -270,7 +271,7 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-// ─── Notifications ────────────────────────────────────────────────────────────
+// Notifications
 export const notificationTypeEnum = pgEnum("notification_type", [
   "match",
   "like_received",
@@ -310,7 +311,7 @@ export const reportReasonEnum = pgEnum("report_reason", [
   "other",
 ]);
 
-// ─── Banned Devices ───────────────────────────────────────────────────────────
+// Banned Devices
 export const bannedDevices = pgTable("banned_devices", {
   id: uuid("id").primaryKey().defaultRandom(),
   deviceId: text("device_id").unique().notNull(),
@@ -320,7 +321,7 @@ export const bannedDevices = pgTable("banned_devices", {
   bannedAt: timestamp("banned_at").defaultNow().notNull(),
 });
 
-// ─── Banned Emails ────────────────────────────────────────────────────────────
+// Banned Emails
 export const bannedEmails = pgTable("banned_emails", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").unique().notNull(),

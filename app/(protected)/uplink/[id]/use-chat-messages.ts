@@ -25,12 +25,19 @@ export function useChatMessages(
     channel.bind("new-message", (incoming: Message) => {
       // Ignore echoes of own messages (already added optimistically).
       if (incoming.senderId === currentUserId) return;
+
       setMessages((prev) => {
         if (prev.find((m) => m.id === incoming.id)) return prev;
         return [
           ...prev,
           { ...incoming, createdAt: new Date(incoming.createdAt) },
         ];
+      });
+
+      // Background fire to instantly mark the new incoming message as read
+      // so it doesn't leave an unread badge on the chat list when navigating back.
+      import("./actions/message").then(({ markChatAsRead }) => {
+        markChatAsRead(conversationId).catch(() => {});
       });
     });
 

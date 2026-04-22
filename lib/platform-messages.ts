@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { platformMessages, notifications, users } from "@/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { sendPushToUser } from "./push";
+import { pusherServer } from "./pusher-server";
 import {
   ADMIN_WARNING_COPY,
   SUSPENSION_COPY,
@@ -26,7 +27,18 @@ export async function sendPlatformMessage(
   type: MessageType = "announcement",
 ): Promise<void> {
   // Keep platformMessages insert — admin panel audit log
-  await db.insert(platformMessages).values({ recipientId, content, type });
+  const [msg] = await db
+    .insert(platformMessages)
+    .values({ recipientId, content, type })
+    .returning();
+
+  // Trigger real-time delivery to the client's inbox
+  await pusherServer.trigger(`user-${recipientId}`, "platform-message", {
+    id: msg.id,
+    content: msg.content,
+    type: msg.type,
+    createdAt: msg.createdAt,
+  });
 
   // Write to notifications so the Activity page SSE stream picks it up
   await db.insert(notifications).values({
@@ -53,9 +65,20 @@ export async function sendPlatformMessageToAll(
   if (allUsers.length === 0) return;
 
   // Admin panel audit log
-  await db
+  const insertedMessages = await db
     .insert(platformMessages)
-    .values(allUsers.map((u) => ({ recipientId: u.id, content, type })));
+    .values(allUsers.map((u) => ({ recipientId: u.id, content, type })))
+    .returning();
+
+  const msgTemplate = insertedMessages[0];
+  if (msgTemplate) {
+    await pusherServer.trigger("vouch-announcements", "platform-message", {
+      id: "broadcast-" + Date.now(),
+      content: msgTemplate.content,
+      type: msgTemplate.type,
+      createdAt: msgTemplate.createdAt,
+    });
+  }
 
   // Activity page feed
   await db.insert(notifications).values(

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Clock, Heart, RotateCcw } from "lucide-react";
-import { reLikeUser } from "./actions";
+import { reLikeUser } from "./actions/connection";
 
 interface ClosedChatBannerProps {
   /** True when the current user is the one who let 24 h pass without responding */

@@ -136,10 +136,23 @@ export async function submitLiveness(videoUrl: string): Promise<LivenessState> {
         .limit(1);
 
       if (adminUser) {
-        await db.insert(platformMessages).values({
-          recipientId: adminUser.id,
-          type: "announcement",
-          content: `New liveness video submitted by ${user.name ?? "a user"} (${user.email}). Visit the admin panel to review: /admin/verifications`,
+        const [msg] = await db
+          .insert(platformMessages)
+          .values({
+            recipientId: adminUser.id,
+            type: "announcement",
+            content: `New liveness video submitted by ${user.name ?? "a user"} (${user.email}). Visit the admin panel to review: /admin/verifications`,
+          })
+          .returning();
+
+        // trigger so admin web UI updates if logged in as user
+        import("@/lib/pusher-server").then(({ pusherServer }) => {
+          pusherServer.trigger(`user-${adminUser.id}`, "platform-message", {
+            id: msg.id,
+            content: msg.content,
+            type: msg.type,
+            createdAt: msg.createdAt,
+          });
         });
       }
     }
