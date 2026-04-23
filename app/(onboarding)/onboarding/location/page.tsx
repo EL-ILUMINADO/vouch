@@ -9,7 +9,12 @@ import { SUPPORTED_UNIVERSITIES } from "@/lib/constants/universities";
 import { UNIVERSITY_LOCATIONS } from "@/lib/constants/locations";
 import { LocationForm } from "./location-form";
 
-export default async function LocationPage() {
+export default async function LocationPage(props: {
+  searchParams: Promise<{ mode?: string }>;
+}) {
+  const searchParams = await props.searchParams;
+  const isUpdate = searchParams?.mode === "update";
+
   const cookieStore = await cookies();
   const token = cookieStore.get("vouch_session")?.value;
   if (!token) redirect("/onboarding/vouch");
@@ -29,8 +34,9 @@ export default async function LocationPage() {
 
   if (!user) redirect("/onboarding/vouch");
 
-  // Already completed — skip ahead
-  if (user.city && user.neighborhood) redirect("/onboarding/verify");
+  // Already completed — skip ahead UNLESS updating
+  if (user.city && user.neighborhood && !isUpdate)
+    redirect("/onboarding/verify");
 
   // Guard: university not in location config yet (shouldn't happen with
   // current supported universities, but prevents a blank form)
@@ -62,6 +68,7 @@ export default async function LocationPage() {
         <LocationForm
           universityId={user.university}
           universityName={universityName}
+          isUpdate={isUpdate}
         />
 
         <footer className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground">

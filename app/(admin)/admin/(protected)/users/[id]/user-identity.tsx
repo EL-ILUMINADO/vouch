@@ -14,6 +14,8 @@ type User = {
   level: string;
   gender: string | null;
   lookingFor: string | null;
+  city: string | null;
+  neighborhood: string | null;
   createdAt: Date | string;
   lastActiveAt: Date | string | null;
   radarPings: number;
@@ -83,6 +85,14 @@ export function UserIdentity({ user }: { user: User }) {
             <InfoRow label="Level" value={user.level} />
             <InfoRow label="Gender" value={user.gender} />
             <InfoRow label="Looking for" value={user.lookingFor} />
+            <InfoRow
+              label="Location"
+              value={
+                user.city && user.neighborhood
+                  ? `${user.city}, ${user.neighborhood}`
+                  : "Not set"
+              }
+            />
             <InfoRow label="Joined" value={fmtDate(user.createdAt)} />
             <InfoRow
               label="Last active"

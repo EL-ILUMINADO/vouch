@@ -67,6 +67,8 @@ export default async function AdminUserProfilePage({ params }: Props) {
         verificationMethod: users.verificationMethod,
         isBanned: users.isBanned,
         isSuspended: users.isSuspended,
+        city: users.city,
+        neighborhood: users.neighborhood,
         warningCount: users.warningCount,
         trustScore: users.trustScore,
         radarPings: users.radarPings,

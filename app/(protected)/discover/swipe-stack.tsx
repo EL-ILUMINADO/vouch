@@ -29,6 +29,8 @@ export type DiscoverPeer = {
   prompt_question: string | null;
   prompt_answer: string | null;
   verificationStatus: string;
+  city: string | null;
+  neighborhood: string | null;
 };
 
 function today() {
@@ -358,12 +360,21 @@ function CardFace({
           <h2 className="text-2xl font-bold text-white leading-none">
             {peer.name}
           </h2>
-          <p className="text-white/80 text-xs font-medium mt-1">
-            {peer.department}
-            {!peer.hideLevel && ` • ${peer.level}`}
-          </p>
-          {peer.verificationStatus === "verified" && (
-            <BadgeCheck className="inline w-3.5 h-3.5 text-rose-300 mt-1" />
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <p className="text-white/80 text-xs font-medium">
+              {peer.department}
+              {!peer.hideLevel && ` • ${peer.level}`}
+            </p>
+            {peer.verificationStatus === "verified" && (
+              <BadgeCheck className="w-3.5 h-3.5 text-rose-300 shrink-0" />
+            )}
+          </div>
+          {peer.city && peer.neighborhood && (
+            <div className="mt-2">
+              <span className="text-[10px] font-bold text-white/90 bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/10 uppercase tracking-widest">
+                Based in {peer.city}, {peer.neighborhood}
+              </span>
+            </div>
           )}
         </div>
       </div>
