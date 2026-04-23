@@ -58,5 +58,11 @@ export async function saveLocation(
     .set({ city, neighborhood })
     .where(eq(users.id, user.id));
 
-  redirect("/onboarding/verify");
+  const mode = formData.get("mode") as string | null;
+
+  if (mode === "update") {
+    redirect("/radar");
+  } else {
+    redirect("/onboarding/verify");
+  }
 }

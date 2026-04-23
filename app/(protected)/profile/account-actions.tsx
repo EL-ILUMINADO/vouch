@@ -33,17 +33,11 @@ export function LogoutButton() {
     <button
       onClick={handleLogout}
       disabled={pending}
-      className="w-full flex items-center justify-between px-4 py-4 bg-card rounded-2xl border border-border hover:border-foreground/30 transition-all group disabled:opacity-60"
+      className="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors group disabled:opacity-60 rounded-xl"
     >
-      <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-muted flex items-center justify-center group-hover:bg-foreground/10 transition-colors">
-          {pending ? (
-            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-          ) : (
-            <LogOut className="w-4 h-4 text-muted-foreground" />
-          )}
-        </div>
-        <span className="text-sm font-bold text-foreground">
+      <div className="flex items-center gap-3 text-red-500">
+        <LogOut className="w-5 h-5" />
+        <span className="text-sm font-semibold">
           {pending ? "Signing out…" : "Log Out"}
         </span>
       </div>
@@ -86,13 +80,11 @@ export function DeleteAccountButton() {
       {/* Trigger button */}
       <button
         onClick={() => setStep("confirm1")}
-        className="w-full flex items-center justify-between px-4 py-4 bg-card rounded-2xl border border-border hover:border-red-500/50 transition-all group"
+        className="w-full flex items-center justify-between p-4 hover:bg-red-500/10 transition-colors group rounded-xl"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-900/20 flex items-center justify-center group-hover:bg-red-100 dark:group-hover:bg-red-900/40 transition-colors">
-            <Trash2 className="w-4 h-4 text-red-500" />
-          </div>
-          <span className="text-sm font-bold text-red-500">Delete Account</span>
+        <div className="flex items-center gap-3 text-red-500">
+          <Trash2 className="w-5 h-5" />
+          <span className="text-sm font-semibold">Delete Account</span>
         </div>
       </button>
 

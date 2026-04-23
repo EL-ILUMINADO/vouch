@@ -22,11 +22,16 @@ import { saveLocation, type LocationState } from "./actions";
 interface Props {
   universityId: string;
   universityName: string;
+  isUpdate?: boolean;
 }
 
 const initialState: LocationState = {};
 
-export function LocationForm({ universityId, universityName }: Props) {
+export function LocationForm({
+  universityId,
+  universityName,
+  isUpdate,
+}: Props) {
   const [state, action, isPending] = useActionState(saveLocation, initialState);
   const [selectedCityId, setSelectedCityId] = useState<string>("");
   const [selectedNeighborhood, setSelectedNeighborhood] = useState<string>("");
@@ -51,6 +56,7 @@ export function LocationForm({ universityId, universityName }: Props) {
     <form action={action} className="space-y-5">
       {/* Carries the resolved neighborhood value to the server action */}
       <input type="hidden" name="neighborhood" value={finalNeighborhood} />
+      {isUpdate && <input type="hidden" name="mode" value="update" />}
 
       <div className="space-y-2">
         <Label className="text-sm font-semibold">City</Label>

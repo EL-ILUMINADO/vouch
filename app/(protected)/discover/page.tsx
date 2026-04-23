@@ -94,6 +94,8 @@ export default async function DiscoverPage() {
       prompt_question: users.prompt_question,
       prompt_answer: users.prompt_answer,
       verificationStatus: users.verificationStatus,
+      city: users.city,
+      neighborhood: users.neighborhood,
     })
     .from(users)
     .where(
